@@ -1,7 +1,8 @@
 Bitcoin CZ [BCZ] Core 2019
 ===============================
 
-<!-- [![Build Status](https://travis-ci.org/bitcoin/bitcoin.svg?branch=master)](https://travis-ci.org/bitcoin/bitcoin) -->
+[![Build Status](https://travis-ci.org/BitcoinCZ/bitcoincz.svg?branch=master)](https://travis-ci.org/BitcoinCZ/bitcoincz)
+
 https://www.bitcoincz.org/
 
 Bitcoin CZ coininfo
