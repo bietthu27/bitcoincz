@@ -530,6 +530,9 @@ void POWMiner(CWallet* pwallet)
 
     while (true){
 
+        while (IsInitialBlockDownload()) {
+            MilliSleep(60000); }
+
         //
         // Create new block
         //
