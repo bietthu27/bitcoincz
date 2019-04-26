@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -16,8 +16,6 @@
 #include "ui_interface.h"
 #include "util.h"
 #include "version.h"
-
-#include <boost/foreach.hpp>
 
 #include <univalue.h>
 
@@ -56,7 +54,7 @@ UniValue ping(const UniValue& params, bool fHelp)
     // Request that each node send a ping during next message processing pass
     LOCK2(cs_main, cs_vNodes);
 
-    BOOST_FOREACH (CNode* pNode, vNodes) {
+    for (CNode* pNode : vNodes) {
         pNode->fPingQueued = true;
     }
 
@@ -69,7 +67,7 @@ static void CopyNodeStats(std::vector<CNodeStats>& vstats)
 
     LOCK(cs_vNodes);
     vstats.reserve(vNodes.size());
-    BOOST_FOREACH (CNode* pnode, vNodes) {
+    for (CNode* pnode : vNodes) {
         CNodeStats stats;
         pnode->copyStats(stats);
         vstats.push_back(stats);
@@ -99,7 +97,7 @@ UniValue getpeerinfo(const UniValue& params, bool fHelp)
             "    \"pingtime\": n,             (numeric) ping time\n"
             "    \"pingwait\": n,             (numeric) ping wait\n"
             "    \"version\": v,              (numeric) The peer version, such as 7001\n"
-            "    \"subver\": \"/Pivx Core:x.x.x.x/\",  (string) The string version\n"
+            "    \"subver\": \"/Bcz Core:x.x.x.x/\",  (string) The string version\n"
             "    \"inbound\": true|false,     (boolean) Inbound (true) or Outbound (false)\n"
             "    \"startingheight\": n,       (numeric) The starting height (block) of the peer\n"
             "    \"banscore\": n,             (numeric) The ban score\n"
@@ -123,7 +121,7 @@ UniValue getpeerinfo(const UniValue& params, bool fHelp)
 
     UniValue ret(UniValue::VARR);
 
-    BOOST_FOREACH (const CNodeStats& stats, vstats) {
+    for (const CNodeStats& stats : vstats) {
         UniValue obj(UniValue::VOBJ);
         CNodeStateStats statestats;
         bool fStateStats = GetNodeStateStats(stats.nodeid, statestats);
@@ -153,7 +151,7 @@ UniValue getpeerinfo(const UniValue& params, bool fHelp)
             obj.push_back(Pair("synced_headers", statestats.nSyncHeight));
             obj.push_back(Pair("synced_blocks", statestats.nCommonHeight));
             UniValue heights(UniValue::VARR);
-            BOOST_FOREACH (int height, statestats.vHeightInFlight) {
+            for (int height : statestats.vHeightInFlight) {
                 heights.push_back(height);
             }
             obj.push_back(Pair("inflight", heights));
@@ -183,7 +181,7 @@ UniValue addnode(const UniValue& params, bool fHelp)
             "2. \"command\"  (string, required) 'add' to add a node to the list, 'remove' to remove a node from the list, 'onetry' to try a connection to the node once\n"
 
             "\nExamples:\n" +
-            HelpExampleCli("addnode", "\"192.168.0.6:51472\" \"onetry\"") + HelpExampleRpc("addnode", "\"192.168.0.6:51472\", \"onetry\""));
+            HelpExampleCli("addnode", "\"192.168.0.6:29500\" \"onetry\"") + HelpExampleRpc("addnode", "\"192.168.0.6:29500\", \"onetry\""));
 
     string strNode = params[0].get_str();
 
@@ -257,7 +255,7 @@ UniValue getaddednodeinfo(const UniValue& params, bool fHelp)
             "    \"connected\" : true|false,          (boolean) If connected\n"
             "    \"addresses\" : [\n"
             "       {\n"
-            "         \"address\" : \"192.168.0.201:51472\",  (string) The pivx server host and port\n"
+            "         \"address\" : \"192.168.0.201:29500\",  (string) The bcz server host and port\n"
             "         \"connected\" : \"outbound\"           (string) connection, inbound or outbound\n"
             "       }\n"
             "       ,...\n"
@@ -274,12 +272,12 @@ UniValue getaddednodeinfo(const UniValue& params, bool fHelp)
     list<string> laddedNodes(0);
     if (params.size() == 1) {
         LOCK(cs_vAddedNodes);
-        BOOST_FOREACH (string& strAddNode, vAddedNodes)
+        for (string& strAddNode : vAddedNodes)
             laddedNodes.push_back(strAddNode);
     } else {
         string strNode = params[1].get_str();
         LOCK(cs_vAddedNodes);
-        BOOST_FOREACH (string& strAddNode, vAddedNodes)
+        for (string& strAddNode : vAddedNodes)
             if (strAddNode == strNode) {
                 laddedNodes.push_back(strAddNode);
                 break;
@@ -290,7 +288,7 @@ UniValue getaddednodeinfo(const UniValue& params, bool fHelp)
 
     UniValue ret(UniValue::VARR);
     if (!fDns) {
-        BOOST_FOREACH (string& strAddNode, laddedNodes) {
+        for (string& strAddNode : laddedNodes) {
             UniValue obj(UniValue::VOBJ);
             obj.push_back(Pair("addednode", strAddNode));
             ret.push_back(obj);
@@ -299,9 +297,9 @@ UniValue getaddednodeinfo(const UniValue& params, bool fHelp)
     }
 
     list<pair<string, vector<CService> > > laddedAddreses(0);
-    BOOST_FOREACH (string& strAddNode, laddedNodes) {
+    for (string& strAddNode : laddedNodes) {
         vector<CService> vservNode(0);
-        if (Lookup(strAddNode.c_str(), vservNode, Params().GetDefaultPort(), fNameLookup, 0))
+        if (Lookup(strAddNode.c_str(), vservNode, 29500, fNameLookup, 0))
             laddedAddreses.push_back(make_pair(strAddNode, vservNode));
         else {
             UniValue obj(UniValue::VOBJ);
@@ -319,11 +317,11 @@ UniValue getaddednodeinfo(const UniValue& params, bool fHelp)
 
         UniValue addresses(UniValue::VARR);
         bool fConnected = false;
-        BOOST_FOREACH (CService& addrNode, it->second) {
+        for (CService& addrNode : it->second) {
             bool fFound = false;
             UniValue node(UniValue::VOBJ);
             node.push_back(Pair("address", addrNode.ToString()));
-            BOOST_FOREACH (CNode* pnode, vNodes)
+            for (CNode* pnode : vNodes)
                 if (pnode->addr == addrNode) {
                     fFound = true;
                     fConnected = true;
@@ -397,7 +395,7 @@ UniValue getnetworkinfo(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "{\n"
             "  \"version\": xxxxx,                      (numeric) the server version\n"
-            "  \"subversion\": \"/Pivx Core:x.x.x.x/\",     (string) the server subversion string\n"
+            "  \"subversion\": \"/Bcz Core:x.x.x.x/\",     (string) the server subversion string\n"
             "  \"protocolversion\": xxxxx,              (numeric) the protocol version\n"
             "  \"localservices\": \"xxxxxxxxxxxxxxxx\", (string) the services we offer to the network\n"
             "  \"timeoffset\": xxxxx,                   (numeric) the time offset\n"
@@ -411,7 +409,7 @@ UniValue getnetworkinfo(const UniValue& params, bool fHelp)
             "  }\n"
             "  ,...\n"
             "  ],\n"
-            "  \"relayfee\": x.xxxxxxxx,                (numeric) minimum relay fee for non-free transactions in pivx/kb\n"
+            "  \"relayfee\": x.xxxxxxxx,                (numeric) minimum relay fee for non-free transactions in bcz/kb\n"
             "  \"localaddresses\": [                    (array) list of local addresses\n"
             "  {\n"
             "    \"address\": \"xxxx\",                 (string) network address\n"
@@ -439,7 +437,7 @@ UniValue getnetworkinfo(const UniValue& params, bool fHelp)
     UniValue localAddresses(UniValue::VARR);
     {
         LOCK(cs_mapLocalHost);
-        BOOST_FOREACH (const PAIRTYPE(CNetAddr, LocalServiceInfo) & item, mapLocalHost) {
+        for (const PAIRTYPE(CNetAddr, LocalServiceInfo) & item : mapLocalHost) {
             UniValue rec(UniValue::VOBJ);
             rec.push_back(Pair("address", item.first.ToString()));
             rec.push_back(Pair("port", item.second.nPort));

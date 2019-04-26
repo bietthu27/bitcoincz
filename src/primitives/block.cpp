@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
-// Copyright (c) 2015-2017 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -12,13 +12,29 @@
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 #include "util.h"
+#include "crypto/Lyra2Z/Lyra2Z.h"
+#include "crypto/Lyra2Z/Lyra2.h"
+#include "main.h"
 
 uint256 CBlockHeader::GetHash() const
 {
-    if(nVersion < 4)
-        return HashQuark(BEGIN(nVersion), END(nNonce));
 
-    return Hash(BEGIN(nVersion), END(nAccumulatorCheckpoint));
+    if (nVersion < 3)
+    {
+        return SerializeHash(*this);
+    }
+
+    else if (nVersion == 4)
+    {
+        return Hash(BEGIN(nVersion), END(nAccumulatorCheckpoint));
+    }
+
+    else
+    {
+        uint256 powHash;
+        lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
+        return powHash;
+    }
 }
 
 uint256 CBlock::BuildMerkleTree(bool* fMutated) const

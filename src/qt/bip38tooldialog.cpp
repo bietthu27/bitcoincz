@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -12,7 +12,7 @@
 #include "base58.h"
 #include "bip38.h"
 #include "init.h"
-#include "wallet/wallet.h"
+#include "wallet.h"
 #include "askpassphrasedialog.h"
 
 #include <string>

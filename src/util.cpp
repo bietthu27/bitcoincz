@@ -1,12 +1,12 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include "config/pivx-config.h"
+#include "config/bcz-config.h"
 #endif
 
 #include "util.h"
@@ -80,7 +80,6 @@
 #include <boost/algorithm/string/predicate.hpp> // for startswith() and endswith()
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <boost/foreach.hpp>
 #include <boost/program_options/detail/config_file.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/thread.hpp>
@@ -90,7 +89,7 @@
 
 using namespace std;
 
-// PIVX only features
+// BCZ only features
 // Masternode
 bool fMasterNode = false;
 string strMasterNodePrivKey = "";
@@ -99,21 +98,16 @@ bool fLiteMode = false;
 // SwiftX
 bool fEnableSwiftTX = true;
 int nSwiftTXDepth = 5;
-// Automatic Zerocoin minting
-bool fEnableZeromint = true;
-bool fEnableAutoConvert = true;
+bool fEnableAutoConvert = false;
+bool fEnableZeromint = false;
+bool fZStake_BCZ = false;
 int nZeromintPercentage = 10;
 int nPreferredDenom = 0;
 const int64_t AUTOMINT_DELAY = (60 * 5); // Wait at least 5 minutes until Automint starts
 
-int nAnonymizePivxAmount = 1000;
-int nLiquidityProvider = 0;
-/** Spork enforcement enabled time */
-int64_t enforceMasternodePaymentsTime = 4085657524;
 bool fSucessfullyLoaded = false;
 /** All denominations used by obfuscation */
 std::vector<int64_t> obfuScationDenominations;
-string strBudgetMode = "";
 
 map<string, string> mapArgs;
 map<string, vector<string> > mapMultiArgs;
@@ -223,14 +217,13 @@ bool LogAcceptCategory(const char* category)
             const vector<string>& categories = mapMultiArgs["-debug"];
             ptrCategory.reset(new set<string>(categories.begin(), categories.end()));
             // thread_specific_ptr automatically deletes the set when the thread ends.
-            // "pivx" is a composite category enabling all PIVX-related debug output
-            if (ptrCategory->count(string("pivx"))) {
+            // "bcz" is a composite category enabling all BCZ-related debug output
+            if (ptrCategory->count(string("bcz"))) {
                 ptrCategory->insert(string("obfuscation"));
                 ptrCategory->insert(string("swiftx"));
                 ptrCategory->insert(string("masternode"));
                 ptrCategory->insert(string("mnpayments"));
                 ptrCategory->insert(string("zero"));
-                ptrCategory->insert(string("mnbudget"));
                 ptrCategory->insert(string("precompute"));
                 ptrCategory->insert(string("staking"));
             }
@@ -391,7 +384,7 @@ static std::string FormatException(std::exception* pex, const char* pszThread)
     char pszModule[MAX_PATH] = "";
     GetModuleFileNameA(NULL, pszModule, sizeof(pszModule));
 #else
-    const char* pszModule = "pivx";
+    const char* pszModule = "bcz";
 #endif
     if (pex)
         return strprintf(
@@ -412,13 +405,13 @@ void PrintExceptionContinue(std::exception* pex, const char* pszThread)
 boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
-// Windows < Vista: C:\Documents and Settings\Username\Application Data\PIVX
-// Windows >= Vista: C:\Users\Username\AppData\Roaming\PIVX
-// Mac: ~/Library/Application Support/PIVX
-// Unix: ~/.pivx
+// Windows < Vista: C:\Documents and Settings\Username\Application Data\BCZ
+// Windows >= Vista: C:\Users\Username\AppData\Roaming\BCZ
+// Mac: ~/Library/Application Support/BCZ
+// Unix: ~/.bcz
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "PIVX";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "BCZ";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -430,10 +423,10 @@ boost::filesystem::path GetDefaultDataDir()
     // Mac
     pathRet /= "Library/Application Support";
     TryCreateDirectory(pathRet);
-    return pathRet / "PIVX";
+    return pathRet / "BCZ";
 #else
     // Unix
-    return pathRet / ".pivx";
+    return pathRet / ".bcz";
 #endif
 #endif
 }
@@ -480,7 +473,7 @@ void ClearDatadirCache()
 
 boost::filesystem::path GetConfigFile()
 {
-    boost::filesystem::path pathConfigFile(GetArg("-conf", "pivx.conf"));
+    boost::filesystem::path pathConfigFile(GetArg("-conf", "bcz.conf"));
     if (!pathConfigFile.is_complete())
         pathConfigFile = GetDataDir(false) / pathConfigFile;
 
@@ -498,19 +491,42 @@ void ReadConfigFile(map<string, string>& mapSettingsRet,
     map<string, vector<string> >& mapMultiSettingsRet)
 {
     boost::filesystem::ifstream streamConfig(GetConfigFile());
-    if (!streamConfig.good()) {
-        // Create empty pivx.conf if it does not exist
-        FILE* configFile = fopen(GetConfigFile().string().c_str(), "a");
-        if (configFile != NULL)
-            fclose(configFile);
-        return; // Nothing to read, so just return
-    }
+    if (!streamConfig.good())
+     {
+            FILE* configFile = fopen(GetConfigFile().string().c_str(), "a");
+            if (configFile != NULL)
+            {
+                std::string strHeader =
+                        "#listen=1\n"
+                        "#server=1\n"
+                        "#rpcpassword=\n"
+                        "#rpcuser=\n"
+                        "#maxconnections=\n"
+                        "#rescan=0\n"
+                        "#reindex=0\n"
+                        "#zapwallettxes=2\n"
+                        "#connect=\n"
+                        "#addnode=\n"
+                        "addnode=51.83.98.8\n"
+                        "addnode=51.83.98.12\n"
+                        "addnode=51.83.98.13\n"
+                        "addnode=51.83.98.21\n"
+                        "addnode=51.83.78.28\n"
+                        "#masternode=1\n"
+                        "#masternodeprivkey=\n"
+                        "#externalip=\n";
+
+                fwrite(strHeader.c_str(), std::strlen(strHeader.c_str()), 1, configFile);
+                fclose(configFile);
+            }
+            return;
+        }
 
     set<string> setOptions;
     setOptions.insert("*");
 
     for (boost::program_options::detail::config_file_iterator it(streamConfig, setOptions), end; it != end; ++it) {
-        // Don't overwrite existing settings so command line settings override pivx.conf
+        // Don't overwrite existing settings so command line settings override bcz.conf
         string strKey = string("-") + it->string_key;
         string strValue = it->value[0];
         InterpretNegativeSetting(strKey, strValue);
@@ -525,7 +541,7 @@ void ReadConfigFile(map<string, string>& mapSettingsRet,
 #ifndef WIN32
 boost::filesystem::path GetPidFile()
 {
-    boost::filesystem::path pathPidFile(GetArg("-pid", "pivxd.pid"));
+    boost::filesystem::path pathPidFile(GetArg("-pid", "bczd.pid"));
     if (!pathPidFile.is_complete()) pathPidFile = GetDataDir() / pathPidFile;
     return pathPidFile;
 }

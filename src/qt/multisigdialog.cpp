@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -15,7 +15,7 @@
 #include "coins.h"
 #include "keystore.h"
 #include "init.h"
-#include "wallet/wallet.h"
+#include "wallet.h"
 #include "script/sign.h"
 #include "script/interpreter.h"
 #include "utilmoneystr.h"
@@ -291,7 +291,7 @@ void MultisigDialog::on_createButton_clicked()
             for (auto outpoint : vSelected)
                 vUserIn.emplace_back(CTxIn(outpoint));
         }else{//check for raw inputs
-            for(int i = 0; i < ui->inputsList->count(); i++){
+            for (int i = 0; i < ui->inputsList->count(); i++){
                 QWidget* input = qobject_cast<QWidget*>(ui->inputsList->itemAt(i)->widget());
                 QLineEdit* txIdLine = input->findChild<QLineEdit*>("txInputId");
                 if(txIdLine->text().isEmpty()){
@@ -316,7 +316,7 @@ void MultisigDialog::on_createButton_clicked()
 
         //validate destinations
         bool validInput = true;
-        for(int i = 0; i < ui->destinationsList->count(); i++){
+        for (int i = 0; i < ui->destinationsList->count(); i++){
             QWidget* dest = qobject_cast<QWidget*>(ui->destinationsList->itemAt(i)->widget());
             QValidatedLineEdit* addr = dest->findChild<QValidatedLineEdit*>("destinationAddress");
             BitcoinAmountField* amt = dest->findChild<BitcoinAmountField*>("destinationAmount");
@@ -387,7 +387,7 @@ bool MultisigDialog::createMultisigTransaction(vector<CTxIn> vUserIn, vector<CTx
         CScript changePubKey;
         bool fFirst = true;
 
-        for(CTxIn in : vUserIn){
+        for (CTxIn in : vUserIn){
             const CCoins* coins = view.AccessCoins(in.prevout.hash);
             if(!coins->IsAvailable(in.prevout.n) || coins == NULL){
                 continue;
@@ -411,12 +411,12 @@ bool MultisigDialog::createMultisigTransaction(vector<CTxIn> vUserIn, vector<CTx
         CAmount totalOut = 0;
 
         //retrieve total output val
-        for(CTxOut out : vUserOut){
+        for (CTxOut out : vUserOut){
             totalOut += out.nValue;
         }
 
         if(totalIn < totalOut){
-            throw runtime_error("Not enough PIV provided as input to complete transaction (including fee).");
+            throw runtime_error("Not enough BCZ provided as input to complete transaction (including fee).");
         }
 
         //calculate change amount
@@ -465,10 +465,10 @@ bool MultisigDialog::createMultisigTransaction(vector<CTxIn> vUserIn, vector<CTx
             throw runtime_error("Could not extract destinations from redeem script.");
         }
 
-        for(CTxIn& in : tx.vin){
+        for (CTxIn& in : tx.vin){
             in.scriptSig.clear();
             //scale estimate to account for multisig scriptSig
-            for(unsigned int i = 0; i < 50*(nReq+addresses.size()); i++){
+            for (unsigned int i = 0; i < 50*(nReq+addresses.size()); i++){
                 in.scriptSig << INT64_MAX;
             }
         }
@@ -481,11 +481,11 @@ bool MultisigDialog::createMultisigTransaction(vector<CTxIn> vUserIn, vector<CTx
             tx.vout.at(changeIndex).nValue -= fee;
             feeStringRet = strprintf("%d",((double)fee)/COIN).c_str();
         }else{
-            throw runtime_error("Not enough PIV provided to cover fee");
+            throw runtime_error("Not enough BCZ provided to cover fee");
         }
 
         //clear junk from script sigs
-        for(CTxIn& in : tx.vin){
+        for (CTxIn& in : tx.vin){
             in.scriptSig.clear();
         }
         multisigTx = tx;
@@ -573,7 +573,7 @@ CCoinsViewCache MultisigDialog::getInputsCoinsViewCache(const vector<CTxIn>& vin
         CCoinsViewMemPool viewMempool(&viewChain, mempool);
         view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
 
-        for(const CTxIn& txin : vin) {
+        for (const CTxIn& txin : vin) {
             const uint256& prevHash = txin.prevout.hash;
             view.AccessCoins(prevHash); // this is certainly allowed to fail
         }
@@ -601,7 +601,7 @@ bool MultisigDialog::signMultisigTx(CMutableTransaction& tx, string& errorOut, Q
 
         //if keys were given, attempt to collect redeem and scriptpubkey
         if(fGivenKeys){
-            for(int i = 0; i < keyList->count(); i++){
+            for (int i = 0; i < keyList->count(); i++){
                 QWidget* keyFrame = qobject_cast<QWidget*>(keyList->itemAt(i)->widget());
                 QLineEdit* key = keyFrame->findChild<QLineEdit*>("key");
                 CBitcoinSecret vchSecret;
@@ -613,7 +613,7 @@ bool MultisigDialog::signMultisigTx(CMutableTransaction& tx, string& errorOut, Q
                 privKeystore.AddKey(cKey);
             }
 
-            for(CTxIn& txin : tx.vin){
+            for (CTxIn& txin : tx.vin){
                 //get inputs
                 CTransaction txVin;
                 uint256 hashBlock;
@@ -655,7 +655,7 @@ bool MultisigDialog::signMultisigTx(CMutableTransaction& tx, string& errorOut, Q
 
         //attempt to sign each input from local wallet
         int nIn = 0;
-        for(CTxIn& txin : tx.vin){
+        for (CTxIn& txin : tx.vin){
             //get inputs
             CTransaction txVin;
             uint256 hashBlock;
@@ -693,7 +693,7 @@ bool MultisigDialog::signMultisigTx(CMutableTransaction& tx, string& errorOut, Q
 bool MultisigDialog::isFullyVerified(CMutableTransaction& tx){
     try{
         int nIn = 0;
-        for(CTxIn& txin : tx.vin){
+        for (CTxIn& txin : tx.vin){
             CTransaction txVin;
             uint256 hashBlock;
             if (!GetTransaction(txin.prevout.hash, txVin, hashBlock, true)){
@@ -777,10 +777,10 @@ bool MultisigDialog::createRedeemScript(int m, vector<string> vKeys, CScript& re
         pubkeys.resize(n);
 
         int i = 0;
-        for(vector<string>::iterator it = vKeys.begin(); it != vKeys.end(); ++it) {
+        for (vector<string>::iterator it = vKeys.begin(); it != vKeys.end(); ++it) {
             string keyString = *it;
 #ifdef ENABLE_WALLET
-            // Case 1: PIVX address and we have full public key:
+            // Case 1: BCZ address and we have full public key:
             CBitcoinAddress address(keyString);
             if (pwalletMain && address.IsValid()) {
                 CKeyID keyID;
@@ -816,7 +816,7 @@ bool MultisigDialog::createRedeemScript(int m, vector<string> vKeys, CScript& re
         //OP_N for required signatures
         redeemRet << redeemRet.EncodeOP_N(m);
         //public keys
-        for(CPubKey& key : pubkeys){
+        for (CPubKey& key : pubkeys){
             vector<unsigned char> vKey= ToByteVector(key);
             redeemRet << vKey;
         }

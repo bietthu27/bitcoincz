@@ -33,7 +33,7 @@ void InterruptHTTPServer();
 void StopHTTPServer();
 
 /** Handler for requests to a certain HTTP path */
-typedef std::function<void(HTTPRequest* req, const std::string &)> HTTPRequestHandler;
+typedef std::function<bool(HTTPRequest* req, const std::string &)> HTTPRequestHandler;
 /** Register handler for prefix.
  * If multiple handlers match a prefix, the first-registered one will
  * be invoked.
@@ -57,7 +57,7 @@ private:
     bool replySent;
 
 public:
-    HTTPRequest(struct evhttp_request* req);
+    explicit HTTPRequest(struct evhttp_request* req);
     ~HTTPRequest();
 
     enum RequestMethod {
@@ -82,7 +82,7 @@ public:
 
     /**
      * Get the request header specified by hdr, or an empty string.
-     * Return an pair (isPresent,string).
+     * Return a pair (isPresent,string).
      */
     std::pair<bool, std::string> GetHeader(const std::string& hdr);
 
@@ -121,7 +121,7 @@ public:
     virtual ~HTTPClosure() {}
 };
 
-/** Event class. This can be used either as an cross-thread trigger or as a timer.
+/** Event class. This can be used either as a cross-thread trigger or as a timer.
  */
 class HTTPEvent
 {

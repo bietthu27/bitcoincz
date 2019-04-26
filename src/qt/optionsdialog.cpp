@@ -1,10 +1,10 @@
 // Copyright (c) 2011-2013 The Bitcoin developers
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include "config/pivx-config.h"
+#include "config/bcz-config.h"
 #endif
 
 #include "optionsdialog.h"
@@ -20,7 +20,7 @@
 #include "txdb.h" // for -dbcache defaults
 
 #ifdef ENABLE_WALLET
-#include "wallet/wallet.h" // for CWallet::minTxFee
+#include "wallet.h" // for CWallet::minTxFee
 #endif
 
 #include <boost/thread.hpp>
@@ -190,8 +190,14 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->bitcoinAtStartup, OptionsModel::StartAtStartup);
     mapper->addMapping(ui->threadsScriptVerif, OptionsModel::ThreadsScriptVerif);
     mapper->addMapping(ui->databaseCache, OptionsModel::DatabaseCache);
+    // Generate Enabled
+    mapper->addMapping(ui->checkBoxPOWMinerEnable, OptionsModel::POWEnable);
+    // Staking Enabled
+    mapper->addMapping(ui->checkBoxStakingEnable, OptionsModel::StakingEnable);
     // Zeromint Enabled
     mapper->addMapping(ui->checkBoxZeromintEnable, OptionsModel::ZeromintEnable);
+    // ZStaking Enabled
+    mapper->addMapping(ui->checkBoxZbczstakeEnable, OptionsModel::ZStakingEnable);
     // Zeromint Addresses
     mapper->addMapping(ui->checkBoxZeromintAddresses, OptionsModel::ZeromintAddresses);
     // Zerocoin mint percentage
@@ -269,7 +275,6 @@ void OptionsDialog::on_resetButton_clicked()
 void OptionsDialog::on_okButton_clicked()
 {
     mapper->submit();
-    obfuScationPool.cachedNumBlocks = std::numeric_limits<int>::max();
     pwalletMain->MarkDirty();
     accept();
 }

@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2016 The Dash Developers
-// Copyright (c) 2016-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,12 +14,25 @@
 #include "masternodeconfig.h"
 #include "masternodeman.h"
 #include "sync.h"
-#include "wallet/wallet.h"
+#include "wallet.h"
 #include "walletmodel.h"
 #include "askpassphrasedialog.h"
+#include "masternodeSetupTool.h"
+#include "masternodeutil.h"
 
 #include <QMessageBox>
 #include <QTimer>
+
+int GetOffsetFromUtc()
+{
+#if QT_VERSION < 0x050200
+    const QDateTime dateTime1 = QDateTime::currentDateTime();
+    const QDateTime dateTime2 = QDateTime(dateTime1.date(), dateTime1.time(), Qt::UTC);
+    return dateTime1.secsTo(dateTime2);
+#else
+    return QDateTime::currentDateTime().offsetFromUtc();
+#endif
+}
 
 CCriticalSection cs_masternodes;
 
@@ -47,6 +60,12 @@ MasternodeList::MasternodeList(QWidget* parent) : QWidget(parent),
     ui->tableWidgetMyMasternodes->setColumnWidth(4, columnActiveWidth);
     ui->tableWidgetMyMasternodes->setColumnWidth(5, columnLastSeenWidth);
 
+    ui->tableWidgetMasternodes->setColumnWidth(0, columnAddressWidth);
+    ui->tableWidgetMasternodes->setColumnWidth(1, columnProtocolWidth);
+    ui->tableWidgetMasternodes->setColumnWidth(2, columnStatusWidth);
+    ui->tableWidgetMasternodes->setColumnWidth(3, columnActiveWidth);
+    ui->tableWidgetMasternodes->setColumnWidth(4, columnLastSeenWidth);
+
     ui->tableWidgetMyMasternodes->setContextMenuPolicy(Qt::CustomContextMenu);
 
     QAction* startAliasAction = new QAction(tr("Start alias"), this);
@@ -56,12 +75,14 @@ MasternodeList::MasternodeList(QWidget* parent) : QWidget(parent),
     connect(startAliasAction, SIGNAL(triggered()), this, SLOT(on_startButton_clicked()));
 
     timer = new QTimer(this);
+    connect(timer, SIGNAL(timeout()), this, SLOT(updateNodeList()));
     connect(timer, SIGNAL(timeout()), this, SLOT(updateMyNodeList()));
     timer->start(1000);
 
     // Fill MN list
     fFilterUpdated = true;
     nTimeFilterUpdated = GetTime();
+    updateNodeList();
 }
 
 MasternodeList::~MasternodeList()
@@ -72,6 +93,10 @@ MasternodeList::~MasternodeList()
 void MasternodeList::setClientModel(ClientModel* model)
 {
     this->clientModel = model;
+    if(model) {
+        // try to update list when xnode count changes
+        connect(clientModel, SIGNAL(strMasternodesChanged(QString)), this, SLOT(updateNodeList()));
+    }
 }
 
 void MasternodeList::setWalletModel(WalletModel* model)
@@ -90,7 +115,7 @@ void MasternodeList::StartAlias(std::string strAlias)
     std::string strStatusHtml;
     strStatusHtml += "<center>Alias: " + strAlias;
 
-    BOOST_FOREACH (CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+    for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
         if (mne.getAlias() == strAlias) {
             std::string strError;
             CMasternodeBroadcast mnb;
@@ -122,7 +147,7 @@ void MasternodeList::StartAll(std::string strCommand)
     int nCountFailed = 0;
     std::string strFailedHtml;
 
-    BOOST_FOREACH (CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+    for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
         std::string strError;
         CMasternodeBroadcast mnb;
 
@@ -210,7 +235,7 @@ void MasternodeList::updateMyNodeList(bool fForce)
     nTimeMyListUpdated = GetTime();
 
     ui->tableWidgetMyMasternodes->setSortingEnabled(false);
-    BOOST_FOREACH (CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+    for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
         int nIndex;
         if(!mne.castOutputIndex(nIndex))
             continue;
@@ -223,6 +248,76 @@ void MasternodeList::updateMyNodeList(bool fForce)
 
     // reset "timer"
     ui->secondsLabel->setText("0");
+}
+
+void MasternodeList::updateNodeList()
+{
+    TRY_LOCK(cs_mnlist, fLockAcquired);
+    if(!fLockAcquired) {
+        return;
+    }
+
+    static int64_t nTimeListUpdated = GetTime();
+
+    // to prevent high cpu usage update only once in MASTERNODELIST_UPDATE_SECONDS seconds
+    // or MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds after filter was last changed
+    int64_t nSecondsToWait = fFilterUpdated
+                            ? nTimeFilterUpdated - GetTime() + MASTERNODELIST_FILTER_COOLDOWN_SECONDS
+                            : nTimeListUpdated - GetTime() + MASTERNODELIST_UPDATE_SECONDS;
+
+    if(fFilterUpdated) ui->countLabel->setText(QString::fromStdString(strprintf("Please wait... %d", nSecondsToWait)));
+    if(nSecondsToWait > 0) return;
+
+    nTimeListUpdated = GetTime();
+    fFilterUpdated = false;
+
+    QString strToFilter;
+    ui->countLabel->setText("Updating...");
+    ui->tableWidgetMasternodes->setSortingEnabled(false);
+    ui->tableWidgetMasternodes->clearContents();
+    ui->tableWidgetMasternodes->setRowCount(0);
+    std::vector<CMasternode> vMasternodes = mnodeman.GetFullMasternodeVector();
+    int offsetFromUtc = GetOffsetFromUtc();
+
+    for (CMasternode & mn : vMasternodes)
+    {
+        QTableWidgetItem *addressItem = new QTableWidgetItem(QString::fromStdString(mn.addr.ToString()));
+        QTableWidgetItem *protocolItem = new QTableWidgetItem(QString::number(mn.protocolVersion));
+        QTableWidgetItem *statusItem = new QTableWidgetItem(QString::fromStdString(mn.GetStatus()));
+        QTableWidgetItem *activeSecondsItem = new QTableWidgetItem(QString::fromStdString(DurationToDHMS(mn.lastPing.sigTime - mn.sigTime)));
+        QTableWidgetItem *lastSeenItem = new QTableWidgetItem(QString::fromStdString(DateTimeStrFormat("%Y-%m-%d %H:%M", mn.lastPing.sigTime + offsetFromUtc)));
+        QTableWidgetItem *pubkeyItem = new QTableWidgetItem(QString::fromStdString(CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()));
+
+        if (strCurrentFilter != "")
+        {
+            strToFilter =   addressItem->text() + " " +
+                            protocolItem->text() + " " +
+                            statusItem->text() + " " +
+                            activeSecondsItem->text() + " " +
+                            lastSeenItem->text() + " " +
+                            pubkeyItem->text();
+            if (!strToFilter.contains(strCurrentFilter)) continue;
+        }
+
+        ui->tableWidgetMasternodes->insertRow(0);
+        ui->tableWidgetMasternodes->setItem(0, 0, addressItem);
+        ui->tableWidgetMasternodes->setItem(0, 1, protocolItem);
+        ui->tableWidgetMasternodes->setItem(0, 2, statusItem);
+        ui->tableWidgetMasternodes->setItem(0, 3, activeSecondsItem);
+        ui->tableWidgetMasternodes->setItem(0, 4, lastSeenItem);
+        ui->tableWidgetMasternodes->setItem(0, 5, pubkeyItem);
+    }
+
+    ui->countLabel->setText(QString::number(ui->tableWidgetMasternodes->rowCount()));
+    ui->tableWidgetMasternodes->setSortingEnabled(true);
+}
+
+void MasternodeList::on_filterLineEdit_textChanged(const QString &strFilterIn)
+{
+    strCurrentFilter = strFilterIn;
+    nTimeFilterUpdated = GetTime();
+    fFilterUpdated = true;
+    ui->countLabel->setText(QString::fromStdString(strprintf("Please wait... %d", MASTERNODELIST_FILTER_COOLDOWN_SECONDS)));
 }
 
 void MasternodeList::on_startButton_clicked()
@@ -283,6 +378,26 @@ void MasternodeList::on_startAllButton_clicked()
     StartAll();
 }
 
+void MasternodeList::showMessage(std::string _message, std::string _paramFirst)
+{
+
+    QString gggoo = QString::fromStdString(_paramFirst);
+    QString textpkk = QString(_message.c_str()).arg(gggoo);
+    QMessageBox::information(this,tr("BCZ"),textpkk,QMessageBox::Ok);
+
+}
+
+void MasternodeList::showMessageTwoArgs(std::string _message, std::string _paramFirst, std::string _paramSecond)
+{
+
+    QString gggoo = QString::fromStdString(_paramFirst);
+    QString gggooy = QString::fromStdString(_paramSecond);
+
+    QString textpkk = QString(_message.c_str()).arg(gggoo).arg(gggooy);
+    QMessageBox::information(this,tr("BCZ"),textpkk,QMessageBox::Ok);
+
+}
+
 void MasternodeList::on_startMissingButton_clicked()
 {
     if (!masternodeSync.IsMasternodeListSynced()) {
@@ -325,3 +440,150 @@ void MasternodeList::on_UpdateButton_clicked()
 {
     updateMyNodeList(true);
 }
+
+void MasternodeList::on_setupMasternodeButton_clicked()
+{
+    const CChainParams& chainParams = Params();
+
+    m_MN.m_qobj=this;
+
+    ReadConfigFile(mapArgs,mapMultiArgs);
+    std::string strMasternode = getConfParam("-masternode");
+    std::string strExternalIp = getConfParam("-externalip");
+    std::string strMasternodePrivKey = getConfParam("-masternodeprivkey");
+    std::string mnGenkey = makeGenkey();
+
+
+    bool masternodeFileExist=false;
+    boost::filesystem::path pathDebug2 = GetDataDir() / "masternode.conf";
+
+    QFileInfo check_file(pathDebug2.string().c_str());
+
+    // check if file exists and if yes: Is it really a file and no directory?
+    if (check_file.exists())
+        masternodeFileExist=true;
+
+    if((strMasternode!="")
+        &&(strExternalIp!="")
+        &&(strMasternodePrivKey!="")
+        &&(masternodeFileExist==true))
+    {
+            string st = "You already have a Masternode :) \n\nParameters you have in your bcz.conf file :\n-masternode=%1\n-externalip=%2\n-masternodeprivkey=%3\n\nPlease press \"Remove Masternode\" button first if you want to use the Masternode setup tool.";
+            //Something went wrong
+            QString qs = QString::fromStdString(st).arg(QString::fromStdString(strMasternode)).arg(QString::fromStdString(strExternalIp)).arg(QString::fromStdString(strMasternodePrivKey));
+
+            QMessageBox::information(this, tr("BCZ masternode setup."),
+            qs,
+            QMessageBox::Ok);
+
+            return;
+    }
+
+
+   // Display message box
+    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("BCZ masternode setup."),
+    tr("Do you really want to setup a BCZ Masternode ?\n\nMasternodes are required to have BCZ collateral.\nYou must also have a dedicated IP."),
+    QMessageBox::Yes | QMessageBox::Cancel,
+    QMessageBox::Cancel);
+
+    if(retval != QMessageBox::Yes)
+        return;
+
+    auto ipaddr = m_MN.checkExternalIp();
+
+    if(ipaddr=="")
+       return;
+
+    if(strMasternode=="")
+    {
+        writeConfFile("masternode=1");
+        strMasternode="1";
+    }
+
+    if(strMasternodePrivKey=="")
+    {
+        std::string tmp= ("masternodeprivkey="+mnGenkey);
+        writeConfFile(tmp);
+        strMasternodePrivKey=mnGenkey;
+    }
+
+    std::string strIpPort= ipaddr+":"+to_string(29500);
+
+    if(strExternalIp=="")
+    {
+        std::string tmp= "externalip="+strIpPort;
+        writeConfFile(tmp);
+        strExternalIp=strIpPort;
+    }
+
+    auto listOutputs = checkMasternodeOutputs();
+
+    //Check if there is masternode output
+    if(listOutputs.size()==0)
+    {
+        //Try to make a collateral trasaction
+        m_MN.makeTransaction(walletModel);
+
+         listOutputs = checkMasternodeOutputs();
+
+        if(listOutputs.size()==0)
+        {
+            //Something went wrong
+            QMessageBox::information(this, tr("BCZ masternode setup."),
+            tr("Error : It looks like you don't have enough BCZ that is required to setup a Masternode..."),
+            QMessageBox::Ok);
+
+            return;
+        }
+    }
+
+    if(masternodeFileExist==true)
+    {
+        // Display message box
+        QMessageBox::StandardButton retval = QMessageBox::question(this, tr("BCZ masternode setup."),
+        tr("Do you want to override your existing masternode.conf file ?"),
+        QMessageBox::Yes | QMessageBox::Cancel,
+        QMessageBox::Cancel);
+
+        if(retval != QMessageBox::Yes)
+        {
+            // Display message box
+            QMessageBox::information(this, tr("BCZ masternode setup."),
+            tr("Error : Your masternode.conf file was not setup correctly. Please override your existing file."),
+            QMessageBox::Ok);
+            return;
+        }
+    }
+
+    //Override masternode.conf file
+    writeMasternodeConfFile("Masternode",strIpPort,strMasternodePrivKey,listOutputs[0].first,listOutputs[0].second);
+
+    // Display message box
+    QMessageBox::information(this, tr("BCZ masternode setup."),
+    tr("Your BCZ Masternode was successfully created !\n\nYour wallet will be turned off, PLEASE RESTART YOUR WALLET to see your running Masternode under \"My masternodes\" tab.\nYou also need to wait confirmations on your masternode collateral transaction."),
+    QString("Shutdown wallet to setup masternode."));
+
+
+    // Shutdown
+   StartShutdown();
+}
+
+void MasternodeList::on_removeMasternodeButton_clicked()
+{
+
+   // Display message box
+    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("BCZ masternode setup."),
+    tr("You are about to delete your bcz.conf and masternode.conf files."),
+    QMessageBox::Yes | QMessageBox::Cancel,
+    QMessageBox::Cancel);
+
+    if(retval != QMessageBox::Yes)
+        return;
+
+    RemoveMasternodeConfigs();
+
+    // Shutdown
+    StartShutdown();
+}
+
+

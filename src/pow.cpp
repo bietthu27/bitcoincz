@@ -1,154 +1,184 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
-// Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2017 The PIVX developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "pow.h"
-
 #include "chain.h"
 #include "chainparams.h"
 #include "main.h"
 #include "primitives/block.h"
 #include "uint256.h"
 #include "util.h"
-
+#include "spork.h"
 #include <math.h>
 
+unsigned int static DarkGravityWave3(const CBlockIndex* pindexLast) {
 
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader* pblock)
+   int64_t nPastBlocks = 24;
+   const CBlockIndex *pindex = pindexLast;
+   uint256 bnPastTargetAvg;
+   for (unsigned int nCountBlocks = 1; nCountBlocks <= nPastBlocks; nCountBlocks++) {
+       uint256 bnTarget = uint256().SetCompact(pindex->nBits);
+       if (nCountBlocks == 1) {
+           bnPastTargetAvg = bnTarget;
+       } else {
+           bnPastTargetAvg = (bnPastTargetAvg * nCountBlocks + bnTarget) / (nCountBlocks + 1);
+       }
+
+       if(nCountBlocks != nPastBlocks) {
+           assert(pindex->pprev);
+           pindex = pindex->pprev;
+       }
+   }
+
+   uint256 bnNew(bnPastTargetAvg);
+   int64_t nActualTimespan = pindexLast->GetBlockTime() - pindex->GetBlockTime();
+   int64_t nTargetTimespan = nPastBlocks * 150;
+   if (nActualTimespan < nTargetTimespan/1.5)
+       nActualTimespan = nTargetTimespan/1.5;
+   if (nActualTimespan > nTargetTimespan*1.5)
+       nActualTimespan = nTargetTimespan*1.5;
+
+   bnNew *= nActualTimespan;
+   bnNew /= nTargetTimespan;
+
+   if (bnNew > Params().powLimit()) {
+       bnNew = Params().powLimit();
+   }
+
+   return bnNew.GetCompact();
+}
+
+unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast)
 {
-    if (Params().NetworkID() == CBaseChainParams::REGTEST)
-        return pindexLast->nBits;
+   if (pindexLast->nHeight > forkend)
+   {
+       return DarkGravityWave3(pindexLast);
+   }
+   else
+   {
+       return Params().powLimit().GetCompact();
+   }
+}
 
-    /* current difficulty formula, pivx - DarkGravity v3, written by Evan Duffield - evan@dashpay.io */
-    const CBlockIndex* BlockLastSolved = pindexLast;
-    const CBlockIndex* BlockReading = pindexLast;
-    int64_t nActualTimespan = 0;
-    int64_t LastBlockTime = 0;
-    int64_t PastBlocksMin = 24;
-    int64_t PastBlocksMax = 24;
-    int64_t CountBlocks = 0;
-    uint256 PastDifficultyAverage;
-    uint256 PastDifficultyAveragePrev;
+unsigned int NexxtD(const CBlockIndex* pindexPrev, const CBlockHeader* pblock)
+{
+   if (IsSporkActive(SPORK_12_NEXXT) && pindexPrev->nHeight > forkend)
+   {
+       return NexxtDG(pindexPrev, pblock);
+   }
+   else
+   {
+       return GetNextWorkRequired(pindexPrev);
+   }
+}
 
-    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
-        return Params().ProofOfWorkLimit().GetCompact();
-    }
+unsigned int NexxtDG(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
+{
+   int64_t nPastBlocks = 24;
+   const CBlockIndex *pindex = pindexLast;
+   uint256 bnPastTargetAvg;
+   for (unsigned int nCountBlocks = 1; nCountBlocks <= nPastBlocks; nCountBlocks++) {
+       uint256 bnTarget = uint256().SetCompact(pindex->nBits);
+       if (nCountBlocks == 1) {
+           bnPastTargetAvg = bnTarget;
+       } else {
+           bnPastTargetAvg = (bnPastTargetAvg * nCountBlocks + bnTarget) / (nCountBlocks + 1);
+       }
 
-    if (pindexLast->nHeight > Params().LAST_POW_BLOCK()) {
-        uint256 bnTargetLimit = (~uint256(0) >> 24);
-        int64_t nTargetSpacing = 60;
-        int64_t nTargetTimespan = 60 * 40;
+       if(nCountBlocks != nPastBlocks) {
+           assert(pindex->pprev);
+           pindex = pindex->pprev;
+       }
+   }
 
-        int64_t nActualSpacing = 0;
-        if (pindexLast->nHeight != 0)
-            nActualSpacing = pindexLast->GetBlockTime() - pindexLast->pprev->GetBlockTime();
+   uint256 bnNew(bnPastTargetAvg);
+   int64_t nActualTimespan = pindexLast->GetBlockTime() - pindex->GetBlockTime();
+   int64_t nTargetTimespan = nPastBlocks * Nexxt(pindexLast, pblock);
 
-        if (nActualSpacing < 0)
-            nActualSpacing = 1;
+   bnNew *= nActualTimespan;
+   bnNew /= nTargetTimespan;
 
-        // ppcoin: target change every block
-        // ppcoin: retarget with exponential moving toward target spacing
-        uint256 bnNew;
-        bnNew.SetCompact(pindexLast->nBits);
+   if (bnNew > Params().powLimit()) {
+       bnNew = Params().powLimit();
+   }
 
-        int64_t nInterval = nTargetTimespan / nTargetSpacing;
-        bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
-        bnNew /= ((nInterval + 1) * nTargetSpacing);
+   return bnNew.GetCompact();
+}
 
-        if (bnNew <= 0 || bnNew > bnTargetLimit)
-            bnNew = bnTargetLimit;
+int64_t Nexxt(const CBlockIndex* pindexPrev, const CBlockHeader* pblock)
+{
+       if      (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (60 * 60) + 0)) {
+           return 1; }
 
-        return bnNew.GetCompact();
-    }
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (55 * 60) + 0)) {
+           return 2; }
 
-    for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
-        if (PastBlocksMax > 0 && i > PastBlocksMax) {
-            break;
-        }
-        CountBlocks++;
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (50 * 60) + 0)) {
+           return 4; }
 
-        if (CountBlocks <= PastBlocksMin) {
-            if (CountBlocks == 1) {
-                PastDifficultyAverage.SetCompact(BlockReading->nBits);
-            } else {
-                PastDifficultyAverage = ((PastDifficultyAveragePrev * CountBlocks) + (uint256().SetCompact(BlockReading->nBits))) / (CountBlocks + 1);
-            }
-            PastDifficultyAveragePrev = PastDifficultyAverage;
-        }
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (45 * 60) + 0)) {
+           return 6; }
 
-        if (LastBlockTime > 0) {
-            int64_t Diff = (LastBlockTime - BlockReading->GetBlockTime());
-            nActualTimespan += Diff;
-        }
-        LastBlockTime = BlockReading->GetBlockTime();
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (40 * 60) + 0)) {
+           return 8; }
 
-        if (BlockReading->pprev == NULL) {
-            assert(BlockReading);
-            break;
-        }
-        BlockReading = BlockReading->pprev;
-    }
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (35 * 60) + 0)) {
+           return 12; }
 
-    uint256 bnNew(PastDifficultyAverage);
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (30 * 60) + 0)) {
+           return 18; }
 
-    int64_t _nTargetTimespan = CountBlocks * Params().TargetSpacing();
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (25 * 60) + 0)) {
+           return 27; }
 
-    if (nActualTimespan < _nTargetTimespan / 3)
-        nActualTimespan = _nTargetTimespan / 3;
-    if (nActualTimespan > _nTargetTimespan * 3)
-        nActualTimespan = _nTargetTimespan * 3;
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (20 * 60) + 0)) {
+           return 41; }
 
-    // Retarget
-    bnNew *= nActualTimespan;
-    bnNew /= _nTargetTimespan;
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (15 * 60) + 0)) {
+           return 62; }
 
-    if (bnNew > Params().ProofOfWorkLimit()) {
-        bnNew = Params().ProofOfWorkLimit();
-    }
+       else if (pblock->GetBlockTime() > (pindexPrev->GetBlockTime() + (10 * 60) + 0)) {
+           return 106; }
 
-    return bnNew.GetCompact();
+       else {
+           return 150; }
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 {
-    bool fNegative;
-    bool fOverflow;
-    uint256 bnTarget;
+   bool fNegative;
+   bool fOverflow;
+   uint256 bnTarget;
 
-    if (Params().SkipProofOfWorkCheck())
-        return true;
+   if (Params().SkipProofOfWorkCheck())
+       return true;
 
-    bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
+   bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
 
-    // Check range
-    if (fNegative || bnTarget == 0 || fOverflow || bnTarget > Params().ProofOfWorkLimit())
-        return error("CheckProofOfWork() : nBits below minimum work");
+   // Check range
+   if (fNegative || bnTarget == 0 || fOverflow || bnTarget > Params().powLimit())
+       return error("CheckProofOfWork() : nBits below minimum work");
 
-    // Check proof of work matches claimed amount
-    if (hash > bnTarget) {
-        if (Params().MineBlocksOnDemand())
-            return false;
-        else
-            return error("CheckProofOfWork() : hash doesn't match nBits");
-    }
+   // Check proof of work matches claimed amount
+   if (hash > bnTarget)
+       return error("CheckProofOfWork() : hash doesn't match nBits");
 
-    return true;
+   return true;
 }
 
 uint256 GetBlockProof(const CBlockIndex& block)
 {
-    uint256 bnTarget;
-    bool fNegative;
-    bool fOverflow;
-    bnTarget.SetCompact(block.nBits, &fNegative, &fOverflow);
-    if (fNegative || fOverflow || bnTarget == 0)
-        return 0;
-    // We need to compute 2**256 / (bnTarget+1), but we can't represent 2**256
-    // as it's too large for a uint256. However, as 2**256 is at least as large
-    // as bnTarget+1, it is equal to ((2**256 - bnTarget - 1) / (bnTarget+1)) + 1,
-    // or ~bnTarget / (nTarget+1) + 1.
-    return (~bnTarget / (bnTarget + 1)) + 1;
+   uint256 bnTarget;
+   bool fNegative;
+   bool fOverflow;
+   bnTarget.SetCompact(block.nBits, &fNegative, &fOverflow);
+   if (fNegative || fOverflow || bnTarget == 0)
+       return 0;
+   // We need to compute 2**256 / (bnTarget+1), but we can't represent 2**256
+   // as it's too large for a uint256. However, as 2**256 is at least as large
+   // as bnTarget+1, it is equal to ((2**256 - bnTarget - 1) / (bnTarget+1)) + 1,
+   // or ~bnTarget / (nTarget+1) + 1.
+   return (~bnTarget / (bnTarget + 1)) + 1;
 }

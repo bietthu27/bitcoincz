@@ -1,5 +1,5 @@
 // Copyright (c) 2012-2014 The Bitcoin developers
-// Copyright (c) 2017 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -17,8 +17,6 @@
 
 #include <math.h>
 #include <stdlib.h>
-
-#include <boost/foreach.hpp>
 
 #define LN2SQUARED 0.4804530139182014246671025263266649717305529515945455
 #define LN2 0.6931471805599453094172321214581765680755001343602552
@@ -126,8 +124,8 @@ bool CBloomFilter::IsWithinSizeConstraints() const
 }
 
 /**
- * Returns true if this filter will match anything. See {@link org.pivxj.core.BloomFilter#setMatchAll()}
- * for when this can be a useful thing to do.
+ *
+ *
  */
 bool CBloomFilter::MatchesAll() const {
     for (unsigned char b : vData)
@@ -207,7 +205,7 @@ bool CBloomFilter::IsRelevantAndUpdate(const CTransaction& tx)
     if (fFound)
         return true;
 
-    BOOST_FOREACH (const CTxIn& txin, tx.vin) {
+    for (const CTxIn& txin : tx.vin) {
         // Match if the filter contains an outpoint tx spends
         if (contains(txin.prevout))
             return true;

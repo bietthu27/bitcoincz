@@ -1,11 +1,10 @@
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef PIVX_UINT512_H
-#define PIVX_UINT512_H
+#ifndef BITCOIN_UINT512_H
+#define BITCOIN_UINT512_H
 
-#include "arith_uint256.h"
 #include "uint256.h"
 
 /** 512-bit unsigned big integer. */
@@ -42,4 +41,4 @@ inline uint512 uint512S(const char* str)
     return rv;
 }
 
-#endif // PIVX_UINT512_H
+#endif // BITCOIN_UINT512_H

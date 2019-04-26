@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2013 The Bitcoin developers
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -44,13 +44,16 @@ public:
         ThreadsScriptVerif,  // int
         DatabaseCache,       // int
         SpendZeroConfChange, // bool
+        POWEnable,           // bool
+        StakingEnable,       // bool
         ZeromintEnable,      // bool
+        ZStakingEnable,       // bool
         ZeromintAddresses,   // bool
         ZeromintPercentage,  // int
         ZeromintPrefDenom,   // int
         HideZeroBalances,    // bool
-        HideOrphans,    // bool
-        AnonymizePivxAmount, //int
+        HideOrphans,         // bool
+        AnonymizeBczAmount,  //int
         ShowMasternodesTab,  // bool
         Listen,              // bool
         StakeSplitThreshold, // int
@@ -90,7 +93,7 @@ private:
     int nDisplayUnit;
     QString strThirdPartyTxUrls;
     bool fCoinControlFeatures;
-    bool fHideZeroBalances;
+    bool fshowWatchOnly;
     bool fHideOrphans;
     /* settings that were overriden by command-line */
     QString strOverriddenByCommandLine;
@@ -100,11 +103,14 @@ private:
 
 signals:
     void displayUnitChanged(int unit);
+    void POWEnableChanged(bool);
+    void stakingEnableChanged(bool);
     void zeromintEnableChanged(bool);
+    void zstakingEnableChanged(bool);
     void zeromintAddressesChanged(bool);
     void zeromintPercentageChanged(int);
     void preferredDenomChanged(int);
-    void anonymizePivxAmountChanged(int);
+    void anonymizeBczAmountChanged(int);
     void coinControlFeaturesChanged(bool);
     void hideZeroBalancesChanged(bool);
     void hideOrphansChanged(bool);

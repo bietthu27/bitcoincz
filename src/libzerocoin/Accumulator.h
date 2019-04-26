@@ -9,7 +9,7 @@
  * @copyright  Copyright 2013 Ian Miers, Christina Garman and Matthew Green
  * @license    This project is released under the MIT license.
  **/
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 #ifndef ACCUMULATOR_H_
 #define ACCUMULATOR_H_
 
@@ -71,6 +71,7 @@ public:
 
     void setValue(CBigNum bnValue);
     void setInitialValue();
+
 
     // /**
     //  * Used to set the accumulator value

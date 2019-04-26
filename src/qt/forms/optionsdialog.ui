@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>576</width>
-    <height>442</height>
+    <height>522</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,7 +20,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>4</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tabMain">
       <attribute name="title">
@@ -30,10 +30,13 @@
        <item>
         <widget class="QCheckBox" name="bitcoinAtStartup">
          <property name="toolTip">
-          <string>Automatically start PIVX after logging in to the system.</string>
+          <string>Automatically start BCZ after logging in to the system.</string>
          </property>
          <property name="text">
-          <string>&amp;Start PIVX on system login</string>
+          <string>&amp;Start BCZ on system login</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -131,44 +134,94 @@
         </spacer>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horiz-autominting-layout">
-         <item>
-          <widget class="QCheckBox" name="checkBoxZeromintEnable">
-           <property name="toolTip">
-            <string>Enable automatic minting of PIV units to zPIV</string>
-           </property>
-           <property name="layoutDirection">
-            <enum>Qt::LeftToRight</enum>
-           </property>
-           <property name="text">
-            <string>Enable zPIV Automint</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QCheckBox" name="checkBoxZeromintAddresses">
-           <property name="toolTip">
-            <string>Enable automatic zPIV minting from specific addresses</string>
-           </property>
-           <property name="layoutDirection">
-            <enum>Qt::LeftToRight</enum>
-           </property>
-           <property name="text">
-            <string>Enable Automint Addresses</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
+        <widget class="QCheckBox" name="checkBoxPOWMinerEnable">
+         <property name="toolTip">
+          <string>Enable automatic POWMiner</string>
+         </property>
+         <property name="layoutDirection">
+          <enum>Qt::LeftToRight</enum>
+         </property>
+         <property name="text">
+          <string>Enable POWMiner As Default - Restart needed</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkBoxStakingEnable">
+         <property name="toolTip">
+          <string>Enable automatic Staking of BCZ</string>
+         </property>
+         <property name="layoutDirection">
+          <enum>Qt::LeftToRight</enum>
+         </property>
+         <property name="text">
+          <string>Enable Staking As Default - Restart needed</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkBoxZeromintEnable">
+         <property name="toolTip">
+          <string>Enable automatic minting of BCZ units to zBCZ</string>
+         </property>
+         <property name="layoutDirection">
+          <enum>Qt::LeftToRight</enum>
+         </property>
+         <property name="text">
+          <string>Enable ZeroCoin Mint As Default - Restart needed</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkBoxZeromintAddresses">
+         <property name="toolTip">
+          <string>Enable automatic zBCZ AutoConverting from specific addresses</string>
+         </property>
+         <property name="layoutDirection">
+          <enum>Qt::LeftToRight</enum>
+         </property>
+         <property name="text">
+          <string>Enable AutoConvert Addresses - Use command: createautomintaddress to create one</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkBoxZbczstakeEnable">
+         <property name="toolTip">
+          <string>Enable automatic Staking of zBCZ</string>
+         </property>
+         <property name="layoutDirection">
+          <enum>Qt::LeftToRight</enum>
+         </property>
+         <property name="text">
+          <string>Enable ZeroStaking As Default - Restart needed</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
           <widget class="QLabel" name="percentage_label">
            <property name="toolTip">
-            <string>Percentage of incoming PIV which get automatically converted to zPIV via Zerocoin Protocol (min: 10%)</string>
+            <string>Percentage of incoming BCZ which get automatically converted to zBCZ via Zerocoin Protocol (min: 10%)</string>
            </property>
            <property name="text">
-            <string>Percentage of autominted zPIV</string>
+            <string>Percentage of autominted zBCZ</string>
            </property>
           </widget>
          </item>
@@ -179,6 +232,30 @@
            </property>
            <property name="maximum">
             <number>100</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_31">
+         <item>
+          <widget class="QLabel" name="reservebalance_label">
+           <property name="toolTip">
+            <string>Amount of BCZ which are kept safe from staking</string>
+           </property>
+           <property name="text">
+            <string>Reserved BCZ Amount from staking - TODO</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="reservebalance">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>9999999</number>
            </property>
           </widget>
          </item>
@@ -198,10 +275,10 @@
             </size>
            </property>
            <property name="toolTip">
-            <string>Wait with automatic conversion to Zerocoin until enough PIV for this denomination is available</string>
+            <string>Wait with automatic conversion to Zerocoin until enough BCZ for this denomination is available</string>
            </property>
            <property name="text">
-            <string>Preferred Automint zPIV Denomination</string>
+            <string>Preferred Automint zBCZ Denomination</string>
            </property>
           </widget>
          </item>
@@ -214,7 +291,7 @@
             </size>
            </property>
            <property name="toolTip">
-            <string>Wait with automatic conversion to Zerocoin until enough PIV for this denomination is available</string>
+            <string>Wait with automatic conversion to Zerocoin until enough BCZ for this denomination is available</string>
            </property>
            <property name="maxVisibleItems">
             <number>9</number>
@@ -268,6 +345,9 @@
             <property name="text">
              <string>Enable coin &amp;control features</string>
             </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
           <item>
@@ -278,6 +358,9 @@
             <property name="text">
              <string>Show Masternodes Tab</string>
             </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
           <item>
@@ -287,6 +370,9 @@
             </property>
             <property name="text">
              <string>&amp;Spend unconfirmed change</string>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
             </property>
            </widget>
           </item>
@@ -316,10 +402,13 @@
        <item>
         <widget class="QCheckBox" name="mapPortUpnp">
          <property name="toolTip">
-          <string>Automatically open the PIVX client port on the router. This only works when your router supports UPnP and it is enabled.</string>
+          <string>Automatically open the BCZ client port on the router. This only works when your router supports UPnP and it is enabled.</string>
          </property>
          <property name="text">
           <string>Map port using &amp;UPnP</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -331,15 +420,21 @@
          <property name="text">
           <string>Allow incoming connections</string>
          </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
         </widget>
        </item>
        <item>
         <widget class="QCheckBox" name="connectSocks">
          <property name="toolTip">
-          <string>Connect to the PIVX network through a SOCKS5 proxy.</string>
+          <string>Connect to the BCZ network through a SOCKS5 proxy.</string>
          </property>
          <property name="text">
           <string>&amp;Connect through SOCKS5 proxy (default proxy):</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -452,6 +547,9 @@
          <property name="text">
           <string>&amp;Minimize to the tray instead of the taskbar</string>
          </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
         </widget>
        </item>
        <item>
@@ -461,6 +559,9 @@
          </property>
          <property name="text">
           <string>M&amp;inimize on close</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -502,7 +603,7 @@
          <item>
           <widget class="QValueComboBox" name="lang">
            <property name="toolTip">
-            <string>The user interface language can be set here. This setting will take effect after restarting PIVX.</string>
+            <string>The user interface language can be set here. This setting will take effect after restarting BCZ.</string>
            </property>
           </widget>
          </item>
@@ -524,7 +625,7 @@
          </property>
          <property name="text">
           <string>Language missing or translation incomplete? Help contributing translations here:
-https://www.transifex.com/pivx-project/pivx-project-translations</string>
+https://www.transifex.com/BitcoinCZ/BCZ-project-translations</string>
          </property>
          <property name="wordWrap">
           <bool>true</bool>
@@ -607,7 +708,10 @@ https://www.transifex.com/pivx-project/pivx-project-translations</string>
             <enum>Qt::LeftToRight</enum>
            </property>
            <property name="text">
-            <string>Hide empty balances</string>
+            <string>Show Watch Only</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
            </property>
           </widget>
          </item>
@@ -618,6 +722,9 @@ https://www.transifex.com/pivx-project/pivx-project-translations</string>
            </property>
            <property name="text">
             <string>Hide orphan stakes</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
            </property>
           </widget>
          </item>
@@ -685,7 +792,7 @@ https://www.transifex.com/pivx-project/pivx-project-translations</string>
         <item>
          <widget class="QLabel" name="overriddenByCommandLineInfoLabel">
           <property name="text">
-           <string>Active command-line options that override above options:</string>
+           <string>Status of command-line options:</string>
           </property>
           <property name="textFormat">
            <enum>Qt::PlainText</enum>

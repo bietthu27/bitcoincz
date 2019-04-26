@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
-// Copyright (c) 2015-2017 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -15,8 +15,6 @@
 #include "libzerocoin/Denominations.h"
 
 #include <vector>
-
-#include <boost/foreach.hpp>
 
 struct CDiskBlockPos {
     int nFile;
@@ -297,6 +295,7 @@ public:
         return nTotal;
     }
 
+
     /**
      * Total of mints added to the specific accumulator.
      * @param denom
@@ -312,6 +311,7 @@ public:
      * @param denom
      * @return
      */
+
     int64_t GetZcMintsAmount(libzerocoin::CoinDenomination denom) const
     {
         return libzerocoin::ZerocoinDenominationToAmount(denom) * GetZcMints(denom);

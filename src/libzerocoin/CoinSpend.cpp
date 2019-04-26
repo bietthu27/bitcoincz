@@ -9,7 +9,7 @@
  * @copyright  Copyright 2013 Ian Miers, Christina Garman and Matthew Green
  * @license    This project is released under the MIT license.
  **/
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 
 #include "CoinSpend.h"
 #include <iostream>
@@ -131,9 +131,9 @@ bool CoinSpend::HasValidSerial(ZerocoinParams* params) const
 //Additional verification layer that requires the spend be signed by the private key associated with the serial
 bool CoinSpend::HasValidSignature() const
 {
-    //No private key for V1
+    //No V1
     if (version < PrivateCoin::PUBKEY_VERSION)
-        return true;
+        return false;
 
     try {
         //V2 serial requires that the signature hash be signed by the public key associated with the serial
@@ -147,7 +147,7 @@ bool CoinSpend::HasValidSignature() const
         throw InvalidSerialException("Serial longer than 256 bits");
     }
 
-    return pubkey.Verify(signatureHash(), vchSig);
+return pubkey.Verify(signatureHash(), vchSig);
 }
 
 CBigNum CoinSpend::CalculateValidSerial(ZerocoinParams* params)

@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The Bitcoin developers
-// Copyright (c) 2017 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,8 +10,8 @@
 #include <vector>
 
 /**
- * CBaseChainParams defines the base parameters (shared between pivx-cli and pivxd)
- * of a given instance of the Pivx system.
+ * CBaseChainParams defines the base parameters (shared between bcz-cli and bczd)
+ * of a given instance of the Bcz system.
  */
 class CBaseChainParams
 {
@@ -20,18 +20,15 @@ public:
         MAIN,
         TESTNET,
         REGTEST,
-        UNITTEST,
 
         MAX_NETWORK_TYPES
     };
 
     const std::string& DataDir() const { return strDataDir; }
-    int RPCPort() const { return nRPCPort; }
 
 protected:
     CBaseChainParams() {}
 
-    int nRPCPort;
     std::string strDataDir;
     Network networkID;
 };

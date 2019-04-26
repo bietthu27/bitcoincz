@@ -9,7 +9,7 @@
  * @copyright  Copyright 2013 Ian Miers, Christina Garman and Matthew Green
  * @license    This project is released under the MIT license.
  **/
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 
 #include <stdexcept>
 #include <iostream>
@@ -36,8 +36,8 @@ PublicCoin::PublicCoin(const ZerocoinParams* p, const CBigNum& coin, const CoinD
 	}
 
 	denomination = d;
-	for(const CoinDenomination denom : zerocoinDenomList) {
-		if(denom == d)
+    for (const CoinDenomination denom : zerocoinDenomList) {
+        if (denom == d)
 			denomination = d;
 	}
     if (denomination == 0) {
@@ -160,7 +160,7 @@ bool PrivateCoin::sign(const uint256& hash, vector<unsigned char>& vchSig) const
 void PrivateCoin::mintCoin(const CoinDenomination denomination) {
 	// Repeat this process up to MAX_COINMINT_ATTEMPTS times until
 	// we obtain a prime number
-	for(uint32_t attempt = 0; attempt < MAX_COINMINT_ATTEMPTS; attempt++) {
+    for (uint32_t attempt = 0; attempt < MAX_COINMINT_ATTEMPTS; attempt++) {
 
 		// Generate a random serial number in the range 0...{q-1} where
 		// "q" is the order of the commitment group.
@@ -264,7 +264,7 @@ int ExtractVersionFromSerial(const CBigNum& bnSerial)
         return 2;
     }
 
-	return 1;
+    return 1;
 }
 
 //Remove the first four bits for V2 serials

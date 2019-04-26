@@ -9,7 +9,7 @@
 * @copyright  Copyright 2013 Ian Miers, Christina Garman and Matthew Green
 * @license    This project is released under the MIT license.
 **/
-// Copyright (c) 2017 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 
 #include <streams.h>
 #include "SerialNumberSignatureOfKnowledge.h"
@@ -61,7 +61,7 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const
     vector<CBigNum> v_expanded(params->zkp_iterations);
     vector<CBigNum> c(params->zkp_iterations);
 
-    for(uint32_t i=0; i < params->zkp_iterations; i++) {
+    for (uint32_t i=0; i < params->zkp_iterations; i++) {
         r[i] = CBigNum::randBignum(params->coinCommitmentGroup.groupOrder);
 
         //use a random 256 bit seed that expands to 1024 bit for v[i]
@@ -78,7 +78,7 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const
         }
     }
 
-    for(uint32_t i=0; i < params->zkp_iterations; i++) {
+    for (uint32_t i=0; i < params->zkp_iterations; i++) {
         // compute g^{ {a^x b^r} h^v} mod p2
         c[i] = challengeCalculation(coin.getSerialNumber(), r[i], v_expanded[i]);
     }
@@ -86,13 +86,13 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const
     // We can't hash data in parallel either
     // because OPENMP cannot not guarantee loops
     // execute in order.
-    for(uint32_t i=0; i < params->zkp_iterations; i++)
+    for (uint32_t i=0; i < params->zkp_iterations; i++)
         hasher << c[i];
 
     this->hash = hasher.GetHash();
     unsigned char *hashbytes =  (unsigned char*) &hash;
 
-    for(uint32_t i = 0; i < params->zkp_iterations; i++) {
+    for (uint32_t i = 0; i < params->zkp_iterations; i++) {
         int bit = i % 8;
         int byte = i / 8;
 

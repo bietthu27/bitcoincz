@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2013 The Bitcoin developers
-// Copyright (c) 2015-2017 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -13,8 +13,7 @@
 #include "uint256.h"
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
-static const unsigned int MAX_BLOCK_SIZE_CURRENT = 2000000;
-static const unsigned int MAX_BLOCK_SIZE_LEGACY = 1000000;
+static const unsigned int MAX_BLOCK_SIZE = 4000000;
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
@@ -27,7 +26,7 @@ class CBlockHeader
 {
 public:
     // header
-    static const int32_t CURRENT_VERSION=5;     // Version 5 supports CLTV activation
+    static const int32_t CURRENT_VERSION=3;
     int32_t nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;

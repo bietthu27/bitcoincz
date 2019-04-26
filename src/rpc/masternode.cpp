@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2012 The Bitcoin developers
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,12 +7,13 @@
 #include "db.h"
 #include "init.h"
 #include "main.h"
-#include "masternode-budget.h"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
 #include "masternodeman.h"
 #include "rpc/server.h"
 #include "utilmoneystr.h"
+#include "masternodeutil.h"
+#include "spork.h"
 
 #include <univalue.h>
 
@@ -28,7 +29,7 @@ UniValue getpoolinfo(const UniValue& params, bool fHelp)
 
             "\nResult:\n"
             "{\n"
-            "  \"current\": \"addr\",    (string) PIVX address of current masternode\n"
+            "  \"current\": \"addr\",    (string) BCZ address of current masternode\n"
             "  \"state\": xxxx,        (string) unknown\n"
             "  \"entries\": xxxx,      (numeric) Number of entries\n"
             "  \"accepted\": xxxx,     (numeric) Number of entries accepted\n"
@@ -72,7 +73,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
             "  debug        - Print masternode status\n"
             "  genkey       - Generate new masternodeprivkey\n"
             "  outputs      - Print masternode compatible outputs\n"
-            "  start        - Start masternode configured in pivx.conf\n"
+            "  start        - Start masternode configured in bcz.conf\n"
             "  start-alias  - Start single masternode by assigned alias configured in masternode.conf\n"
             "  start-<mode> - Start masternodes configured in masternode.conf (<mode>: 'all', 'missing', 'disabled')\n"
             "  status       - Print masternode status information\n"
@@ -208,7 +209,7 @@ UniValue listmasternodes(const UniValue& params, bool fHelp)
             "    \"outidx\": n,         (numeric) Collateral transaction output index\n"
             "    \"pubkey\": \"key\",   (string) Masternode public key used for message broadcasting\n"
             "    \"status\": s,         (string) Status (ENABLED/EXPIRED/REMOVE/etc)\n"
-            "    \"addr\": \"addr\",      (string) Masternode PIVX address\n"
+            "    \"addr\": \"addr\",      (string) Masternode BCZ address\n"
             "    \"version\": v,        (numeric) Masternode protocol version\n"
             "    \"lastseen\": ttt,     (numeric) The time in seconds since epoch (Jan 1 1970 GMT) of the last seen\n"
             "    \"activetime\": ttt,   (numeric) The time in seconds since epoch (Jan 1 1970 GMT) masternode has been active\n"
@@ -229,7 +230,7 @@ UniValue listmasternodes(const UniValue& params, bool fHelp)
         nHeight = pindex->nHeight;
     }
     std::vector<pair<int, CMasternode> > vMasternodeRanks = mnodeman.GetMasternodeRanks(nHeight);
-    BOOST_FOREACH (PAIRTYPE(int, CMasternode) & s, vMasternodeRanks) {
+    for (PAIRTYPE(int, CMasternode) & s : vMasternodeRanks) {
         UniValue obj(UniValue::VOBJ);
         std::string strVin = s.second.vin.prevout.ToStringShort();
         std::string strTxHash = s.second.vin.prevout.hash.ToString();
@@ -239,10 +240,10 @@ UniValue listmasternodes(const UniValue& params, bool fHelp)
 
         if (mn != NULL) {
             if (strFilter != "" && strTxHash.find(strFilter) == string::npos &&
-                mn->Status().find(strFilter) == string::npos &&
+                mn->GetStatus().find(strFilter) == string::npos &&
                 CBitcoinAddress(mn->pubKeyCollateralAddress.GetID()).ToString().find(strFilter) == string::npos) continue;
 
-            std::string strStatus = mn->Status();
+            std::string strStatus = mn->GetStatus();
             std::string strHost;
             int port;
             SplitHostPort(mn->addr.ToString(), port, strHost);
@@ -279,7 +280,7 @@ UniValue masternodeconnect(const UniValue& params, bool fHelp)
             "1. \"address\"     (string, required) IP or net address to connect to\n"
 
             "\nExamples:\n" +
-            HelpExampleCli("masternodeconnect", "\"192.168.0.6:51472\"") + HelpExampleRpc("masternodeconnect", "\"192.168.0.6:51472\""));
+            HelpExampleCli("masternodeconnect", "\"192.168.0.6:29500\"") + HelpExampleRpc("masternodeconnect", "\"192.168.0.6:29500\""));
 
     std::string strAddress = params[0].get_str();
 
@@ -304,7 +305,6 @@ UniValue getmasternodecount (const UniValue& params, bool fHelp)
             "\nResult:\n"
             "{\n"
             "  \"total\": n,        (numeric) Total masternodes\n"
-            "  \"stable\": n,       (numeric) Stable count\n"
             "  \"obfcompat\": n,    (numeric) Obfuscation Compatible\n"
             "  \"enabled\": n,      (numeric) Enabled masternodes\n"
             "  \"inqueue\": n       (numeric) Masternodes in queue\n"
@@ -323,7 +323,6 @@ UniValue getmasternodecount (const UniValue& params, bool fHelp)
     mnodeman.CountNetworks(ActiveProtocol(), ipv4, ipv6, onion);
 
     obj.push_back(Pair("total", mnodeman.size()));
-    obj.push_back(Pair("stable", mnodeman.stable_size()));
     obj.push_back(Pair("obfcompat", mnodeman.CountEnabled(ActiveProtocol())));
     obj.push_back(Pair("enabled", mnodeman.CountEnabled()));
     obj.push_back(Pair("inqueue", nCount));
@@ -471,7 +470,7 @@ UniValue startmasternode (const UniValue& params, bool fHelp)
 
         UniValue resultsObj(UniValue::VARR);
 
-        BOOST_FOREACH (CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+        for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
             std::string errorMessage;
             int nIndex;
             if(!mne.castOutputIndex(nIndex))
@@ -522,7 +521,7 @@ UniValue startmasternode (const UniValue& params, bool fHelp)
         UniValue statusObj(UniValue::VOBJ);
         statusObj.push_back(Pair("alias", alias));
 
-        BOOST_FOREACH (CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+        for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
             if (mne.getAlias() == alias) {
                 found = true;
                 std::string errorMessage;
@@ -606,7 +605,7 @@ UniValue getmasternodeoutputs (const UniValue& params, bool fHelp)
     vector<COutput> possibleCoins = activeMasternode.SelectCoinsMasternode();
 
     UniValue ret(UniValue::VARR);
-    BOOST_FOREACH (COutput& out, possibleCoins) {
+    for (COutput& out : possibleCoins) {
         UniValue obj(UniValue::VOBJ);
         obj.push_back(Pair("txhash", out.tx->GetHash().ToString()));
         obj.push_back(Pair("outputidx", out.i));
@@ -651,14 +650,14 @@ UniValue listmasternodeconf (const UniValue& params, bool fHelp)
 
     UniValue ret(UniValue::VARR);
 
-    BOOST_FOREACH (CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+    for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
         int nIndex;
         if(!mne.castOutputIndex(nIndex))
             continue;
         CTxIn vin = CTxIn(uint256(mne.getTxHash()), uint32_t(nIndex));
         CMasternode* pmn = mnodeman.Find(vin);
 
-        std::string strStatus = pmn ? pmn->Status() : "MISSING";
+        std::string strStatus = pmn ? pmn->GetStatus() : "MISSING";
 
         if (strFilter != "" && mne.getAlias().find(strFilter) == string::npos &&
             mne.getIp().find(strFilter) == string::npos &&
@@ -690,7 +689,7 @@ UniValue getmasternodestatus (const UniValue& params, bool fHelp)
             "  \"txhash\": \"xxxx\",      (string) Collateral transaction hash\n"
             "  \"outputidx\": n,        (numeric) Collateral transaction output index number\n"
             "  \"netaddr\": \"xxxx\",     (string) Masternode network address\n"
-            "  \"addr\": \"xxxx\",        (string) PIVX address for masternode payments\n"
+            "  \"addr\": \"xxxx\",        (string) BCZ address for masternode payments\n"
             "  \"status\": \"xxxx\",      (string) Masternode status\n"
             "  \"message\": \"xxxx\"      (string) Masternode status message\n"
             "}\n"
@@ -732,7 +731,7 @@ UniValue getmasternodewinners (const UniValue& params, bool fHelp)
             "  {\n"
             "    \"nHeight\": n,           (numeric) block height\n"
             "    \"winner\": {\n"
-            "      \"address\": \"xxxx\",    (string) PIVX MN Address\n"
+            "      \"address\": \"xxxx\",    (string) BCZ MN Address\n"
             "      \"nVotes\": n,          (numeric) Number of votes for winner\n"
             "    }\n"
             "  }\n"
@@ -745,7 +744,7 @@ UniValue getmasternodewinners (const UniValue& params, bool fHelp)
             "    \"nHeight\": n,           (numeric) block height\n"
             "    \"winner\": [\n"
             "      {\n"
-            "        \"address\": \"xxxx\",  (string) PIVX MN Address\n"
+            "        \"address\": \"xxxx\",  (string) BCZ MN Address\n"
             "        \"nVotes\": n,        (numeric) Number of votes for winner\n"
             "      }\n"
             "      ,...\n"
@@ -787,7 +786,7 @@ UniValue getmasternodewinners (const UniValue& params, bool fHelp)
             UniValue winner(UniValue::VARR);
             boost::char_separator<char> sep(",");
             boost::tokenizer< boost::char_separator<char> > tokens(strPayment, sep);
-            BOOST_FOREACH (const string& t, tokens) {
+            for (const string& t : tokens) {
                 UniValue addr(UniValue::VOBJ);
                 std::size_t pos = t.find(":");
                 std::string strAddress = t.substr(0,pos);
@@ -852,7 +851,7 @@ UniValue getmasternodescores (const UniValue& params, bool fHelp)
     for (int nHeight = chainActive.Tip()->nHeight - nLast; nHeight < chainActive.Tip()->nHeight + 20; nHeight++) {
         uint256 nHigh = 0;
         CMasternode* pBestMasternode = NULL;
-        BOOST_FOREACH (CMasternode& mn, vMasternodes) {
+        for (CMasternode& mn : vMasternodes) {
             uint256 n = mn.CalculateScore(1, nHeight - 100);
             if (n > nHigh) {
                 nHigh = n;
@@ -936,7 +935,7 @@ UniValue createmasternodebroadcast(const UniValue& params, bool fHelp)
         UniValue statusObj(UniValue::VOBJ);
         statusObj.push_back(Pair("alias", alias));
 
-        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+        for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
             if(mne.getAlias() == alias) {
                 found = true;
                 std::string errorMessage;
@@ -979,7 +978,7 @@ UniValue createmasternodebroadcast(const UniValue& params, bool fHelp)
 
         UniValue resultsObj(UniValue::VARR);
 
-        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+        for (CMasternodeConfig::CMasternodeEntry mne : masternodeConfig.getEntries()) {
             std::string errorMessage;
 
             CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
@@ -1101,3 +1100,87 @@ UniValue relaymasternodebroadcast(const UniValue& params, bool fHelp)
     return strprintf("Masternode broadcast sent (service %s, vin %s)", mnb.addr.ToString(), mnb.vin.ToString());
 }
 
+UniValue setupmasternode(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "setupmasternode \"IPAddress\"\n"
+            "\nSetup a new masternode.\n"
+            + HelpRequiringPassphrase() +
+            "\nArguments:\n"
+            "1. \"IPAddress\" (string, required) Your external ip.\n"
+            + HelpExampleCli("setupmasternode", "\"X.X.X.X\"")
+        );
+
+
+    std::string _ip =  params[0].get_str();
+    const CChainParams& chainParams = Params();
+
+    ReadConfigFile(mapArgs,mapMultiArgs);
+    std::string strMasternode = getConfParam("-masternode");
+    std::string strExternalIp = getConfParam("-externalip");
+    std::string strMasternodePrivKey = getConfParam("-masternodeprivkey");
+    std::string mnGenkey = makeGenkey();
+    std::string strIpPort= _ip+":"+to_string(29500);
+
+    bool masternodeFileExist = false;
+    boost::filesystem::path pathDebug2 = GetDataDir() / "masternode.conf";
+
+    if (boost::filesystem::exists(pathDebug2.string().c_str()))
+            masternodeFileExist = true;
+
+    if(masternodeFileExist==true)
+        return "Error Masternode already exist \nPlease delete it (deletemasternode) first if you want to use the Masternode setup tool.";
+
+    if((strMasternode!="")
+        &&(strExternalIp!="")
+        &&(strMasternodePrivKey!="")
+        &&(masternodeFileExist==true))
+    {
+        return "Error : You already have a Masternode :) \n\nParameters you have in your bcz.conf file :\n-masternode=%1\n-externalip=%2\n-masternodeprivkey=%3\n\nPlease delete it (deletemasternode) first if you want to use the Masternode setup tool.";
+    }
+
+    auto listOutputs = checkMasternodeOutputs();
+
+    //Check if there is masternode output
+    if(listOutputs.size()==0)
+    {
+        UniValue transactionInfo(UniValue::VARR);
+
+        CBitcoinAddress mnAddress = GetAccountAddressForMasternode("Masternode payment",false);
+
+        std::string addr = mnAddress.ToString();
+        CAmount mncoins = GetSporkValue(SPORK_15_MN_MODE_X) * COIN;//xxxx
+        std::string strMnPrice = std::to_string(mncoins);
+
+        transactionInfo.push_back(addr);
+        transactionInfo.push_back(strMnPrice.c_str());
+
+        sendtoaddress(transactionInfo, false);
+        listOutputs = checkMasternodeOutputs();
+
+        if(listOutputs.size()==0)
+            return "Error : Outputs not found";
+    }
+
+    RemoveMasternodeConfigs();
+    writeMasternodeConfInfo(mnGenkey, strIpPort);
+    writeMasternodeConfFile("Masternode",strIpPort,mnGenkey,listOutputs[0].first,listOutputs[0].second);
+    StartShutdown();
+
+    return "Setup complete, please restart your wallet and wait for 1 confirmation on your collateral transaction.";
+}
+
+UniValue deletemasternode(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "deletemasternode\n"
+            "\nDelete your masternode configuration.\n"
+        );
+
+    RemoveMasternodeConfigs();
+    StartShutdown();
+
+    return "Masternode successfuly deleted, please restart your wallet.";
+}

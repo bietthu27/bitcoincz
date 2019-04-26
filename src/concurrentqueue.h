@@ -1,10 +1,9 @@
-//
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef PIVX_CONCURRENTQUEUE_H
-#define PIVX_CONCURRENTQUEUE_H
+#ifndef BITCOIN_CONCURRENTQUEUE_H
+#define BITCOIN_CONCURRENTQUEUE_H
 
 
 #include <mutex>
@@ -48,4 +47,4 @@ public:
     }
 };
 
-#endif //PIVX_CONCURRENTQUEUE_H
+#endif //BITCOIN_CONCURRENTQUEUE_H

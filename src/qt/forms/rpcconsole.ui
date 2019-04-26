@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>769</width>
-    <height>485</height>
+    <height>526</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>3</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tab_info">
       <attribute name="title">
@@ -326,6 +326,65 @@
         </widget>
        </item>
        <item row="14" column="0">
+        <widget class="QLabel" name="labelMempoolTitle">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Memory Pool</string>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="0">
+        <widget class="QLabel" name="numberOfTransactionsLabel">
+         <property name="text">
+          <string>Current number of transactions</string>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="1">
+        <widget class="QLabel" name="mempoolNumberTxs">
+         <property name="cursor">
+          <cursorShape>IBeamCursor</cursorShape>
+         </property>
+         <property name="text">
+          <string>N/A</string>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="0">
+        <widget class="QLabel" name="memoryUsageLabel">
+         <property name="text">
+          <string>Memory usage</string>
+         </property>
+        </widget>
+       </item>
+       <item row="16" column="1">
+        <widget class="QLabel" name="mempoolSize">
+         <property name="cursor">
+          <cursorShape>IBeamCursor</cursorShape>
+         </property>
+         <property name="text">
+          <string>N/A</string>
+         </property>
+         <property name="textFormat">
+          <enum>Qt::PlainText</enum>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+         </property>
+        </widget>
+       </item>
+       <item row="17" column="0">
         <spacer name="verticalSpacer_2">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -338,7 +397,7 @@
          </property>
         </spacer>
        </item>
-       <item row="15" column="0">
+       <item row="18" column="0">
         <widget class="QLabel" name="debugLogFileHeader">
          <property name="font">
           <font>
@@ -351,10 +410,10 @@
          </property>
         </widget>
        </item>
-       <item row="16" column="0">
+       <item row="19" column="0">
         <widget class="QPushButton" name="openDebugLogfileButton">
          <property name="toolTip">
-          <string>Open the PIVX debug log file from the current data directory. This can take a few seconds for large log files.</string>
+          <string>Open the BCZ debug log file from the current data directory. This can take a few seconds for large log files.</string>
          </property>
          <property name="text">
           <string>&amp;Open</string>
@@ -423,8 +482,8 @@
             <string/>
            </property>
            <property name="icon">
-            <iconset resource="../pivx.qrc">
-             <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
+            <iconset resource="../bcz.qrc">
+             <normaloff>:/icons/remove_dark</normaloff>:/icons/remove_dark</iconset>
            </property>
            <property name="shortcut">
             <string notr="true">Ctrl+L</string>
@@ -1298,11 +1357,11 @@
        </item>
        <item row="3" column="0">
         <widget class="QLabel" name="wallet_custombackuppath_label">
-         <property name="text">
-          <string>Custom Backup Path:</string>
-         </property>
          <property name="visible">
           <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Custom Backup Path:</string>
          </property>
         </widget>
        </item>
@@ -1311,6 +1370,9 @@
          <property name="cursor">
           <cursorShape>IBeamCursor</cursorShape>
          </property>
+         <property name="visible">
+          <bool>false</bool>
+         </property>
          <property name="text">
           <string>N/A</string>
          </property>
@@ -1319,26 +1381,26 @@
          </property>
          <property name="textInteractionFlags">
           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-         </property>
-         <property name="visible">
-          <bool>false</bool>
          </property>
         </widget>
        </item>
        <item row="4" column="0">
-        <widget class="QLabel" name="wallet_customzpivbackuppath_label">
-         <property name="text">
-          <string>Custom zPIV Backup Path:</string>
-         </property>
+        <widget class="QLabel" name="wallet_customzbczbackuppath_label">
          <property name="visible">
           <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Custom zBCZ Backup Path:</string>
          </property>
         </widget>
        </item>
        <item row="4" column="1" colspan="3">
-        <widget class="QLabel" name="wallet_customzpivbackuppath">
+        <widget class="QLabel" name="wallet_customzbczbackuppath">
          <property name="cursor">
           <cursorShape>IBeamCursor</cursorShape>
+         </property>
+         <property name="visible">
+          <bool>false</bool>
          </property>
          <property name="text">
           <string>N/A</string>
@@ -1348,19 +1410,16 @@
          </property>
          <property name="textInteractionFlags">
           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-         </property>
-         <property name="visible">
-          <bool>false</bool>
          </property>
         </widget>
        </item>
        <item row="5" column="0">
         <widget class="QLabel" name="wallet_custombackupthreshold_label">
-         <property name="text">
-          <string>Custom Backups Threshold:</string>
-         </property>
          <property name="visible">
           <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Custom Backups Threshold:</string>
          </property>
         </widget>
        </item>
@@ -1369,6 +1428,9 @@
          <property name="cursor">
           <cursorShape>IBeamCursor</cursorShape>
          </property>
+         <property name="visible">
+          <bool>false</bool>
+         </property>
          <property name="text">
           <string>N/A</string>
          </property>
@@ -1377,9 +1439,6 @@
          </property>
          <property name="textInteractionFlags">
           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
-         </property>
-         <property name="visible">
-          <bool>false</bool>
          </property>
         </widget>
        </item>
@@ -1637,7 +1696,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../pivx.qrc"/>
+  <include location="../bcz.qrc"/>
  </resources>
  <connections/>
 </ui>

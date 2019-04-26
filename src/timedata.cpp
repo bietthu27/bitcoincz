@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2017 The Bitcoin developers
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,8 +10,6 @@
 #include "ui_interface.h"
 #include "util.h"
 #include "utilstrencodings.h"
-
-#include <boost/foreach.hpp>
 
 using namespace std;
 
@@ -84,13 +82,13 @@ void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
             if (!fDone) {
                 // If nobody has a time different than ours but within 5 minutes of ours, give a warning
                 bool fMatch = false;
-                BOOST_FOREACH (int64_t nOffset, vSorted)
+                for (int64_t nOffset : vSorted)
                     if (nOffset != 0 && abs64(nOffset) < 5 * 60)
                         fMatch = true;
 
                 if (!fMatch) {
                     fDone = true;
-                    string strMessage = _("Warning: Please check that your computer's date and time are correct! If your clock is wrong PIVX Core will not work properly.");
+                    string strMessage = _("Warning: Please check that your computer's date and time are correct! If your clock is wrong BCZ Core will not work properly.");
                     strMiscWarning = strMessage;
                     LogPrintf("*** %s\n", strMessage);
                     uiInterface.ThreadSafeMessageBox(strMessage, "", CClientUIInterface::MSG_WARNING);
@@ -98,7 +96,7 @@ void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
             }
         }
         if (fDebug) {
-            BOOST_FOREACH (int64_t n, vSorted)
+            for (int64_t n : vSorted)
                 LogPrintf("%+d  ", n);
             LogPrintf("|  ");
         }

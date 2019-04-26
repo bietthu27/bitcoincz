@@ -371,7 +371,7 @@ void scrypt(const char* pass, unsigned int pLen, const char* salt, unsigned int 
 
     PBKDF2_SHA256((const uint8_t *)pass, pLen, (const uint8_t *)salt, sLen, 1, B, p * 128 * r);
 
-    for(unsigned int i = 0; i < p; i++)
+    for (unsigned int i = 0; i < p; i++)
     {
         SMix(&B[i * 128 * r], r, N, V, XY);
     }

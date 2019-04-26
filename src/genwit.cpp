@@ -1,5 +1,4 @@
-//
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,6 +6,7 @@
 #include "genwit.h"
 #include "chainparams.h"
 #include "util.h"
+#include "spork.h"
 
 CGenWit::CGenWit() : accWitValue(0) {}
 
@@ -21,8 +21,8 @@ bool CGenWit::isValid(int chainActiveHeight) {
         return error("%s: ERROR: filter not within size constraints", __func__);
     }
 
-    if (startingHeight < Params().Zerocoin_Block_V2_Start()){
-        return error("%s: ERROR: starting height before V2 activation", __func__);
+    if (startingHeight < GetSporkValue(SPORK_20_ZEROCOIN_START)){
+        return error("%s: ERROR: starting height before activation", __func__);
     }
 
     if (accWitValue == 0){

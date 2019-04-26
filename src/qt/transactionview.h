@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2017 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -76,6 +76,8 @@ private:
     QFrame* dateRangeWidget;
     QDateTimeEdit* dateFrom;
     QDateTimeEdit* dateTo;
+    QAction *abandonAction;
+    QAction *resendAction;
 
     QWidget* createDateRangeWidget();
 
@@ -96,6 +98,8 @@ private slots:
     void copyTxID();
     void openThirdPartyTxUrl(QString url);
     void updateWatchOnlyColumn(bool fHaveWatchOnly);
+    void abandonTx();
+    void rebroadcastTx();
 
 signals:
     void doubleClicked(const QModelIndex&);

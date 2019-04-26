@@ -1,6 +1,6 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -11,6 +11,7 @@
 #include "guiconstants.h"
 #include "guiutil.h"
 #include "miner.h"
+#include "staker.h"
 #include "networkstyle.h"
 #include "notificator.h"
 #include "openuridialog.h"
@@ -64,6 +65,9 @@ BitcoinGUI::BitcoinGUI(const NetworkStyle* networkStyle, QWidget* parent) : QMai
                                                                             walletFrame(0),
                                                                             unitDisplayControl(0),
                                                                             labelStakingIcon(0),
+                                                                            labelZStakingIcon(0),
+                                                                            labelAutoMintIcon(0),
+                                                                            labelAutoConvertIcon(0),
                                                                             labelEncryptionIcon(0),
                                                                             labelTorIcon(0),
                                                                             labelConnectionsIcon(0),
@@ -87,7 +91,6 @@ BitcoinGUI::BitcoinGUI(const NetworkStyle* networkStyle, QWidget* parent) : QMai
                                                                             multisigSignAction(0),
                                                                             aboutAction(0),
                                                                             receiveCoinsAction(0),
-                                                                            governanceAction(0),
                                                                             privacyAction(0),
                                                                             optionsAction(0),
                                                                             toggleHideAction(0),
@@ -112,7 +115,7 @@ BitcoinGUI::BitcoinGUI(const NetworkStyle* networkStyle, QWidget* parent) : QMai
 
     GUIUtil::restoreWindowGeometry("nWindow", QSize(850, 550), this);
 
-    QString windowTitle = tr("PIVX Core") + " - ";
+    QString windowTitle = tr("BCZ Core") + " - ";
 #ifdef ENABLE_WALLET
     /* if compiled with wallet support, -disablewallet can still disable the wallet */
     enableWallet = !GetBoolArg("-disablewallet", false);
@@ -177,12 +180,31 @@ BitcoinGUI::BitcoinGUI(const NetworkStyle* networkStyle, QWidget* parent) : QMai
     frameBlocksLayout->setContentsMargins(3, 0, 3, 0);
     frameBlocksLayout->setSpacing(3);
     unitDisplayControl = new UnitDisplayStatusBarControl();
-    labelStakingIcon = new QLabel();
+    labelPOWIcon = new QPushButton();
+    labelPOWIcon->setObjectName("labelPOWIcon");
+    labelPOWIcon->setFlat(true); // Make the button look like a label, but clickable
+    labelPOWIcon->setStyleSheet(".QPushButton { background-color: rgba(255, 255, 255, 0);}");
+    labelPOWIcon->setMaximumSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
+    labelStakingIcon = new QPushButton();
+    labelStakingIcon->setObjectName("labelStakingIcon");
+    labelStakingIcon->setFlat(true); // Make the button look like a label, but clickable
+    labelStakingIcon->setStyleSheet(".QPushButton { background-color: rgba(255, 255, 255, 0);}");
+    labelStakingIcon->setMaximumSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
+    labelZStakingIcon = new QPushButton();
+    labelZStakingIcon->setObjectName("labelZStakingIcon");
+    labelZStakingIcon->setFlat(true); // Make the button look like a label, but clickable
+    labelZStakingIcon->setStyleSheet(".QPushButton { background-color: rgba(255, 255, 255, 0);}");
+    labelZStakingIcon->setMaximumSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
     labelAutoMintIcon = new QPushButton();
     labelAutoMintIcon->setObjectName("labelAutoMintIcon");
     labelAutoMintIcon->setFlat(true); // Make the button look like a label, but clickable
     labelAutoMintIcon->setStyleSheet(".QPushButton { background-color: rgba(255, 255, 255, 0);}");
     labelAutoMintIcon->setMaximumSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
+    labelAutoConvertIcon = new QPushButton();
+    labelAutoConvertIcon->setObjectName("labelAutoConvertIcon");
+    labelAutoConvertIcon->setFlat(true); // Make the button look like a label, but clickable
+    labelAutoConvertIcon->setStyleSheet(".QPushButton { background-color: rgba(255, 255, 255, 0);}");
+    labelAutoConvertIcon->setMaximumSize(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
     labelEncryptionIcon = new QPushButton();
     labelEncryptionIcon->setObjectName("labelEncryptionIcon");
     labelEncryptionIcon->setFlat(true); // Make the button look like a label, but clickable
@@ -202,7 +224,13 @@ BitcoinGUI::BitcoinGUI(const NetworkStyle* networkStyle, QWidget* parent) : QMai
         frameBlocksLayout->addStretch();
         frameBlocksLayout->addWidget(labelEncryptionIcon);
         frameBlocksLayout->addStretch();
+        frameBlocksLayout->addWidget(labelPOWIcon);
+        frameBlocksLayout->addStretch();
         frameBlocksLayout->addWidget(labelStakingIcon);
+        frameBlocksLayout->addStretch();
+        frameBlocksLayout->addWidget(labelZStakingIcon);
+        frameBlocksLayout->addStretch();
+        frameBlocksLayout->addWidget(labelAutoConvertIcon);
         frameBlocksLayout->addStretch();
         frameBlocksLayout->addWidget(labelAutoMintIcon);
     }
@@ -246,6 +274,10 @@ BitcoinGUI::BitcoinGUI(const NetworkStyle* networkStyle, QWidget* parent) : QMai
     connect(labelConnectionsIcon, SIGNAL(clicked()), rpcConsole, SLOT(showPeers()));
     connect(labelEncryptionIcon, SIGNAL(clicked()), walletFrame, SLOT(toggleLockWallet()));
     connect(labelAutoMintIcon, SIGNAL(clicked()), this, SLOT(optionsClicked()));
+    connect(labelStakingIcon, SIGNAL(clicked()), this, SLOT(optionsClicked()));
+    connect(labelZStakingIcon, SIGNAL(clicked()), this, SLOT(optionsClicked()));
+    connect(labelAutoConvertIcon, SIGNAL(clicked()), this, SLOT(optionsClicked()));
+    connect(labelPOWIcon, SIGNAL(clicked()), this, SLOT(optionsClicked()));
 
     // Get restart command-line parameters and handle restart
     connect(rpcConsole, SIGNAL(handleRestart(QStringList)), this, SLOT(handleRestart(QStringList)));
@@ -267,15 +299,30 @@ BitcoinGUI::BitcoinGUI(const NetworkStyle* networkStyle, QWidget* parent) : QMai
     // Subscribe to notifications from core
     subscribeToCoreSignals();
 
+    QTimer* timerPOWIcon = new QTimer(labelPOWIcon);
+    connect(timerPOWIcon, SIGNAL(timeout()), this, SLOT(setPOWStatus()));
+    timerPOWIcon->start(10000);
+    setPOWStatus();
+
     QTimer* timerStakingIcon = new QTimer(labelStakingIcon);
     connect(timerStakingIcon, SIGNAL(timeout()), this, SLOT(setStakingStatus()));
     timerStakingIcon->start(10000);
     setStakingStatus();
 
+    QTimer* timerZStakingIcon = new QTimer(labelZStakingIcon);
+    connect(timerZStakingIcon, SIGNAL(timeout()), this, SLOT(setZStakingStatus()));
+    timerZStakingIcon->start(10000);
+    setZStakingStatus();
+
     QTimer* timerAutoMintIcon = new QTimer(labelAutoMintIcon);
     connect(timerAutoMintIcon, SIGNAL(timeout()), this, SLOT(setAutoMintStatus()));
     timerAutoMintIcon->start(10000);
     setAutoMintStatus();
+
+    QTimer* timerAutoConvertIcon = new QTimer(labelAutoConvertIcon);
+    connect(timerAutoConvertIcon, SIGNAL(timeout()), this, SLOT(setAutoConvertStatus()));
+    timerAutoConvertIcon->start(10000);
+    setAutoConvertStatus();
 }
 
 BitcoinGUI::~BitcoinGUI()
@@ -308,7 +355,7 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     tabGroup->addAction(overviewAction);
 
     sendCoinsAction = new QAction(QIcon(":/icons/send"), tr("&Send"), this);
-    sendCoinsAction->setStatusTip(tr("Send coins to a PIVX address"));
+    sendCoinsAction->setStatusTip(tr("Send coins to a BCZ address"));
     sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
     sendCoinsAction->setCheckable(true);
 #ifdef Q_OS_MAC
@@ -319,7 +366,7 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     tabGroup->addAction(sendCoinsAction);
 
     receiveCoinsAction = new QAction(QIcon(":/icons/receiving_addresses"), tr("&Receive"), this);
-    receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and pivx: URIs)"));
+    receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and bcz: URIs)"));
     receiveCoinsAction->setToolTip(receiveCoinsAction->statusTip());
     receiveCoinsAction->setCheckable(true);
 #ifdef Q_OS_MAC
@@ -341,7 +388,7 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     tabGroup->addAction(historyAction);
 
     privacyAction = new QAction(QIcon(":/icons/privacy"), tr("&Privacy"), this);
-    privacyAction->setStatusTip(tr("Privacy Actions for zPIV"));
+    privacyAction->setStatusTip(tr("Privacy Actions for zBCZ"));
     privacyAction->setToolTip(privacyAction->statusTip());
     privacyAction->setCheckable(true);
 #ifdef Q_OS_MAC
@@ -369,17 +416,6 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
         connect(masternodeAction, SIGNAL(triggered()), this, SLOT(gotoMasternodePage()));
     }
 
-    governanceAction = new QAction(QIcon(":/icons/governance"), tr("&Governance"), this);
-    governanceAction->setStatusTip(tr("Show Proposals"));
-    governanceAction->setToolTip(governanceAction->statusTip());
-    governanceAction->setCheckable(true);
-#ifdef Q_OS_MAC
-    governanceAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_7));
-#else
-    governanceAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_7));
-#endif
-    tabGroup->addAction(governanceAction);
-
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -392,21 +428,20 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     connect(privacyAction, SIGNAL(triggered()), this, SLOT(gotoPrivacyPage()));
     connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
-    connect(governanceAction, SIGNAL(triggered()), this, SLOT(gotoGovernancePage()));
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(QIcon(":/icons/quit"), tr("E&xit"), this);
     quitAction->setStatusTip(tr("Quit application"));
     quitAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
     quitAction->setMenuRole(QAction::QuitRole);
-    aboutAction = new QAction(networkStyle->getAppIcon(), tr("&About PIVX Core"), this);
-    aboutAction->setStatusTip(tr("Show information about PIVX Core"));
+    aboutAction = new QAction(networkStyle->getAppIcon(), tr("&About BCZ Core"), this);
+    aboutAction->setStatusTip(tr("Show information about BCZ Core"));
     aboutAction->setMenuRole(QAction::AboutRole);
     aboutQtAction = new QAction(QIcon(":/qt-project.org/qmessagebox/images/qtlogo-64.png"), tr("About &Qt"), this);
     aboutQtAction->setStatusTip(tr("Show information about Qt"));
     aboutQtAction->setMenuRole(QAction::AboutQtRole);
     optionsAction = new QAction(QIcon(":/icons/options"), tr("&Options..."), this);
-    optionsAction->setStatusTip(tr("Modify configuration options for PIVX"));
+    optionsAction->setStatusTip(tr("Modify configuration options for BCZ"));
     optionsAction->setMenuRole(QAction::PreferencesRole);
     toggleHideAction = new QAction(networkStyle->getAppIcon(), tr("&Show / Hide"), this);
     toggleHideAction->setStatusTip(tr("Show or hide the main Window"));
@@ -422,9 +457,9 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     unlockWalletAction->setToolTip(tr("Unlock wallet"));
     lockWalletAction = new QAction(tr("&Lock Wallet"), this);
     signMessageAction = new QAction(QIcon(":/icons/edit"), tr("Sign &message..."), this);
-    signMessageAction->setStatusTip(tr("Sign messages with your PIVX addresses to prove you own them"));
+    signMessageAction->setStatusTip(tr("Sign messages with your BCZ addresses to prove you own them"));
     verifyMessageAction = new QAction(QIcon(":/icons/transaction_0"), tr("&Verify message..."), this);
-    verifyMessageAction->setStatusTip(tr("Verify messages to ensure they were signed with specified PIVX addresses"));
+    verifyMessageAction->setStatusTip(tr("Verify messages to ensure they were signed with specified BCZ addresses"));
     bip38ToolAction = new QAction(QIcon(":/icons/key"), tr("&BIP38 tool"), this);
     bip38ToolAction->setToolTip(tr("Encrypt and decrypt private keys using a passphrase"));
     multiSendAction = new QAction(QIcon(":/icons/edit"), tr("&MultiSend"), this);
@@ -461,13 +496,13 @@ void BitcoinGUI::createActions(const NetworkStyle* networkStyle)
     multisigSignAction->setStatusTip(tr("Sign with a multisignature address"));
 
     openAction = new QAction(QApplication::style()->standardIcon(QStyle::SP_FileIcon), tr("Open &URI..."), this);
-    openAction->setStatusTip(tr("Open a PIVX: URI or payment request"));
+    openAction->setStatusTip(tr("Open a BCZ: URI or payment request"));
     openBlockExplorerAction = new QAction(QIcon(":/icons/explorer"), tr("&Blockchain explorer"), this);
     openBlockExplorerAction->setStatusTip(tr("Block explorer window"));
 
     showHelpMessageAction = new QAction(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation), tr("&Command-line options"), this);
     showHelpMessageAction->setMenuRole(QAction::NoRole);
-    showHelpMessageAction->setStatusTip(tr("Show the PIVX Core help message to get a list with possible PIVX command-line options"));
+    showHelpMessageAction->setStatusTip(tr("Show the BCZ Core help message to get a list with possible BCZ command-line options"));
 
     connect(quitAction, SIGNAL(triggered()), qApp, SLOT(quit()));
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(aboutClicked()));
@@ -578,7 +613,6 @@ void BitcoinGUI::createToolBars()
         if (settings.value("fShowMasternodesTab").toBool()) {
             toolbar->addAction(masternodeAction);
         }
-        toolbar->addAction(governanceAction);
         toolbar->setMovable(false); // remove unused icon in upper left corner
         toolbar->setOrientation(Qt::Vertical);
         toolbar->setIconSize(QSize(40,40));
@@ -630,7 +664,11 @@ void BitcoinGUI::setClientModel(ClientModel* clientModel)
         }
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(clientModel->getOptionsModel());
+        connect(clientModel->getOptionsModel(), SIGNAL(POWEnableChanged(bool)), this, SLOT(setPOWStatus()));
+        connect(clientModel->getOptionsModel(), SIGNAL(stakingEnableChanged(bool)), this, SLOT(setStakingStatus()));
+        connect(clientModel->getOptionsModel(), SIGNAL(stakingEnableChanged(bool)), this, SLOT(setZStakingStatus()));
         connect(clientModel->getOptionsModel(), SIGNAL(zeromintEnableChanged(bool)), this, SLOT(setAutoMintStatus()));
+        connect(clientModel->getOptionsModel(), SIGNAL(zstakingEnableChanged(bool)), this, SLOT(setAutoMintStatus()));
 
         //Show trayIcon
         if (trayIcon)
@@ -701,7 +739,7 @@ void BitcoinGUI::createTrayIcon(const NetworkStyle* networkStyle)
 {
 #ifndef Q_OS_MAC
     trayIcon = new QSystemTrayIcon(this);
-    QString toolTip = tr("PIVX Core client") + " " + networkStyle->getTitleAddText();
+    QString toolTip = tr("BCZ Core client") + " " + networkStyle->getTitleAddText();
     trayIcon->setToolTip(toolTip);
     trayIcon->setIcon(networkStyle->getAppIcon());
     trayIcon->hide();
@@ -825,12 +863,6 @@ void BitcoinGUI::gotoMasternodePage()
     }
 }
 
-void BitcoinGUI::gotoGovernancePage()
-{
-    governanceAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoGovernancePage();
-}
-
 void BitcoinGUI::gotoReceiveCoinsPage()
 {
     receiveCoinsAction->setChecked(true);
@@ -920,7 +952,7 @@ void BitcoinGUI::setNumConnections(int count)
     }
     QIcon connectionItem = QIcon(icon).pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
     labelConnectionsIcon->setIcon(connectionItem);
-    labelConnectionsIcon->setToolTip(tr("%n active connection(s) to PIVX network", "", count));
+    labelConnectionsIcon->setToolTip(tr("%n active connection(s) to BCZ network", "", count));
 }
 
 void BitcoinGUI::setNumBlocks(int count)
@@ -1050,7 +1082,7 @@ void BitcoinGUI::setNumBlocks(int count)
 
 void BitcoinGUI::message(const QString& title, const QString& message, unsigned int style, bool* ret)
 {
-    QString strTitle = tr("PIVX Core"); // default title
+    QString strTitle = tr("BCZ Core"); // default title
     // Default to information icon
     int nMBoxIcon = QMessageBox::Information;
     int nNotifyIcon = Notificator::Information;
@@ -1075,7 +1107,7 @@ void BitcoinGUI::message(const QString& title, const QString& message, unsigned 
             break;
         }
     }
-    // Append title to "PIVX - "
+    // Append title to "BCZ - "
     if (!msgType.isEmpty())
         strTitle += " - " + msgType;
 
@@ -1183,23 +1215,36 @@ bool BitcoinGUI::eventFilter(QObject* object, QEvent* event)
 }
 
 #ifdef ENABLE_WALLET
+void BitcoinGUI::setPOWStatus()
+{
+    if (walletFrame) {
+
+        if (fGenerate_BCZ) {
+            labelPOWIcon->show();
+            labelPOWIcon->setIcon(QIcon(":/icons/pow_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelPOWIcon->setToolTip(tr("POW is active"));
+        } else {
+            labelPOWIcon->show();
+            labelPOWIcon->setIcon(QIcon(":/icons/pow_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelPOWIcon->setToolTip(tr("POW is not active"));
+        }
+    }
+}
+
 void BitcoinGUI::setStakingStatus()
 {
     if (walletFrame) {
         if (pwalletMain)
             fMultiSend = pwalletMain->isMultiSendEnabled();
 
-        if (nLastCoinStakeSearchInterval) {
+        if (fStake_BCZ) {
             labelStakingIcon->show();
-            labelStakingIcon->setPixmap(QIcon(":/icons/staking_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-            labelStakingIcon->setToolTip(
-                    tr("Staking is active\n MultiSend: %1").arg(fMultiSend ? tr("Active") : tr("Not Active")));
+            labelStakingIcon->setIcon(QIcon(":/icons/staking_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelStakingIcon->setToolTip(tr("Staking is active\nMultiSend: %1").arg(fMultiSend ? tr("Active") : tr("Not Active")));
         } else {
             labelStakingIcon->show();
-            labelStakingIcon->setPixmap(
-                    QIcon(":/icons/staking_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-            labelStakingIcon->setToolTip(
-                    tr("Staking is not active\n MultiSend: %1").arg(fMultiSend ? tr("Active") : tr("Not Active")));
+            labelStakingIcon->setIcon(QIcon(":/icons/staking_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelStakingIcon->setToolTip(tr("Staking is not active\nMultiSend: %1").arg(fMultiSend ? tr("Active") : tr("Not Active")));
         }
     }
 }
@@ -1211,12 +1256,44 @@ void BitcoinGUI::setAutoMintStatus()
             labelAutoMintIcon->show();
             labelAutoMintIcon->setIcon(QIcon(":/icons/automint_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
             labelAutoMintIcon->setToolTip(
-                    tr("AutoMint is currently enabled and set to ") + QString::number(nZeromintPercentage) + "%.\n");
+                    tr("zBCZ AutoMint is currently enabled and set to ") + QString::number(nZeromintPercentage) + "%.\n");
         } else {
             labelAutoMintIcon->show();
             labelAutoMintIcon->setIcon(
                     QIcon(":/icons/automint_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
-            labelAutoMintIcon->setToolTip(tr("AutoMint is disabled"));
+            labelAutoMintIcon->setToolTip(tr("zBCZ AutoMint is disabled"));
+        }
+    }
+}
+
+void BitcoinGUI::setAutoConvertStatus()
+{
+    if (walletFrame) {
+        if (fEnableAutoConvert) {
+            labelAutoConvertIcon->show();
+            labelAutoConvertIcon->setIcon(QIcon(":/icons/autoconvert_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelAutoConvertIcon->setToolTip(
+                    tr("AutoConvert is currently enabled"));
+        } else {
+            labelAutoConvertIcon->show();
+            labelAutoConvertIcon->setIcon(
+                    QIcon(":/icons/autoconvert_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelAutoConvertIcon->setToolTip(tr("AutoConvert is currently disabled"));
+        }
+    }
+}
+
+void BitcoinGUI::setZStakingStatus()
+{
+    if (walletFrame) {
+        if (fZStake_BCZ) {
+            labelZStakingIcon->show();
+            labelZStakingIcon->setIcon(QIcon(":/icons/zstaking_active").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelZStakingIcon->setToolTip(tr("ZeroStaking is active\nMultiSend: %1").arg(fMultiSend ? tr("Active") : tr("Not Active")));
+        } else {
+            labelZStakingIcon->show();
+            labelZStakingIcon->setIcon(QIcon(":/icons/zstaking_inactive").pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            labelZStakingIcon->setToolTip(tr("ZeroStaking is not active\nMultiSend: %1").arg(fMultiSend ? tr("Active") : tr("Not Active")));
         }
     }
 }

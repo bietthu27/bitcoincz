@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2013 The Bitcoin developers
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -99,12 +99,12 @@ TransactionView::TransactionView(QWidget* parent) : QWidget(parent), model(0), t
 
     typeWidget->addItem(tr("To yourself"), TransactionFilterProxy::TYPE(TransactionRecord::SendToSelf));
     typeWidget->addItem(tr("Mined"), TransactionFilterProxy::TYPE(TransactionRecord::Generated));
-    typeWidget->addItem(tr("Minted"), TransactionFilterProxy::TYPE(TransactionRecord::StakeMint) | TransactionFilterProxy::TYPE(TransactionRecord::StakeZPIV));
+    typeWidget->addItem(tr("Minted"), TransactionFilterProxy::TYPE(TransactionRecord::StakeMint) | TransactionFilterProxy::TYPE(TransactionRecord::StakeZBCZ));
     typeWidget->addItem(tr("Masternode Reward"), TransactionFilterProxy::TYPE(TransactionRecord::MNReward));
-    typeWidget->addItem(tr("Received PIV from zPIV"), TransactionFilterProxy::TYPE(TransactionRecord::RecvFromZerocoinSpend));
+    typeWidget->addItem(tr("Received BCZ from zBCZ"), TransactionFilterProxy::TYPE(TransactionRecord::RecvFromZerocoinSpend));
     typeWidget->addItem(tr("Zerocoin Mint"), TransactionFilterProxy::TYPE(TransactionRecord::ZerocoinMint));
     typeWidget->addItem(tr("Zerocoin Spend"), TransactionFilterProxy::TYPE(TransactionRecord::ZerocoinSpend));
-    typeWidget->addItem(tr("Zerocoin Spend, Change in zPIV"), TransactionFilterProxy::TYPE(TransactionRecord::ZerocoinSpend_Change_zPiv));
+    typeWidget->addItem(tr("Zerocoin Spend, Change in zBCZ"), TransactionFilterProxy::TYPE(TransactionRecord::ZerocoinSpend_Change_zBcz));
     typeWidget->addItem(tr("Zerocoin Spend to Self"), TransactionFilterProxy::TYPE(TransactionRecord::ZerocoinSpend_FromMe));
     typeWidget->addItem(tr("Other"), TransactionFilterProxy::TYPE(TransactionRecord::Other));
     typeWidget->setCurrentIndex(settings.value("transactionType").toInt());
@@ -162,6 +162,9 @@ TransactionView::TransactionView(QWidget* parent) : QWidget(parent), model(0), t
     hideOrphansAction->setCheckable(true);
     hideOrphansAction->setChecked(settings.value("fHideOrphans", false).toBool());
 
+    abandonAction = new QAction(tr("Abandon transaction"), this);
+    resendAction = new QAction(tr("Re-broadcast transaction"), this);
+
     contextMenu = new QMenu();
     contextMenu->addAction(copyAddressAction);
     contextMenu->addAction(copyLabelAction);
@@ -170,6 +173,8 @@ TransactionView::TransactionView(QWidget* parent) : QWidget(parent), model(0), t
     contextMenu->addAction(editLabelAction);
     contextMenu->addAction(showDetailsAction);
     contextMenu->addAction(hideOrphansAction);
+    contextMenu->addAction(abandonAction);
+    contextMenu->addAction(resendAction);
 
     mapperThirdPartyTxUrls = new QSignalMapper(this);
 
@@ -193,6 +198,9 @@ TransactionView::TransactionView(QWidget* parent) : QWidget(parent), model(0), t
     connect(editLabelAction, SIGNAL(triggered()), this, SLOT(editLabel()));
     connect(showDetailsAction, SIGNAL(triggered()), this, SLOT(showDetails()));
     connect(hideOrphansAction, SIGNAL(toggled(bool)), this, SLOT(updateHideOrphans(bool)));
+
+    connect(abandonAction, SIGNAL(triggered()), this, SLOT(abandonTx()));
+    connect(resendAction, SIGNAL(triggered()), this, SLOT(rebroadcastTx()));
 }
 
 void TransactionView::setModel(WalletModel* model)
@@ -381,6 +389,64 @@ void TransactionView::changedAmount(const QString& amount)
     }
 }
 
+void TransactionView::contextualMenu(const QPoint &point)
+{
+    QModelIndex index = transactionView->indexAt(point);
+    QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
+    if (selection.empty())
+        return;
+
+    // check if transaction can be abandoned, disable context menu action in case it doesn't
+    uint256 hash;
+    hash.SetHex(selection.at(0).data(TransactionTableModel::TxHashRole).toString().toStdString());
+    abandonAction->setEnabled(model->transactionCanBeAbandoned(hash));
+    resendAction->setEnabled(model->transactionCanBeRebroadcast(hash));
+
+    if(index.isValid())
+    {
+        contextMenu->exec(QCursor::pos());
+    }
+}
+
+void TransactionView::abandonTx()
+{
+    if(!transactionView || !transactionView->selectionModel())
+        return;
+    QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
+
+    // get the hash from the TxHashRole (QVariant / QString)
+    uint256 hash;
+    QString hashQStr = selection.at(0).data(TransactionTableModel::TxHashRole).toString();
+    hash.SetHex(hashQStr.toStdString());
+
+    // Abandon the wallet transaction over the walletModel
+    model->abandonTransaction(hash);
+
+    // Update the table
+    model->getTransactionTableModel()->updateTransaction(hashQStr, CT_UPDATED, false);
+}
+
+void TransactionView::rebroadcastTx()
+{
+    if(!transactionView || !transactionView->selectionModel())
+        return;
+    QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
+
+    // get the hash from the TxHashRole (QVariant / QString)
+    uint256 hash;
+    QString hashQStr = selection.at(0).data(TransactionTableModel::TxHashRole).toString();
+    hash.SetHex(hashQStr.toStdString());
+
+    if (model->rebroadcastTransaction(hash))
+        Q_EMIT message(tr("Re-broadcast"), tr("Broadcast succeeded"), CClientUIInterface::MSG_INFORMATION);
+    else
+        Q_EMIT message(tr("Re-broadcast"), tr("There was an error trying to broadcast the message"),
+            CClientUIInterface::MSG_ERROR);
+
+    // Update the table
+    model->getTransactionTableModel()->updateTransaction(hashQStr, CT_UPDATED, true);
+}
+
 void TransactionView::exportClicked()
 {
     // CSV is currently the only supported format
@@ -417,14 +483,6 @@ void TransactionView::exportClicked()
     else {
         emit message(tr("Exporting Failed"), tr("There was an error trying to save the transaction history to %1.").arg(filename),
                      CClientUIInterface::MSG_ERROR);
-    }
-}
-
-void TransactionView::contextualMenu(const QPoint& point)
-{
-    QModelIndex index = transactionView->indexAt(point);
-    if (index.isValid()) {
-        contextMenu->exec(QCursor::pos());
     }
 }
 

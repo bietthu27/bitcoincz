@@ -1,7 +1,7 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,11 +14,10 @@
 #include "txdb.h"
 #include "util.h"
 #include "utilmoneystr.h"
-#include "zpiv/accumulatormap.h"
-#include "zpiv/accumulators.h"
-#include "wallet/wallet.h"
-#include "zpivchain.h"
-
+#include "accumulatormap.h"
+#include "accumulators.h"
+#include "wallet.h"
+#include "zbczchain.h"
 #include <stdint.h>
 #include <fstream>
 #include <iostream>
@@ -111,7 +110,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
     result.push_back(Pair("acc_checkpoint", block.nAccumulatorCheckpoint.GetHex()));
     UniValue txs(UniValue::VARR);
-    BOOST_FOREACH (const CTransaction& tx, block.vtx) {
+    for (const CTransaction& tx : block.vtx) {
         if (txDetails) {
             UniValue objTx(UniValue::VOBJ);
             TxToJSON(tx, uint256(0), objTx);
@@ -137,12 +136,12 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 
     result.push_back(Pair("moneysupply",ValueFromAmount(blockindex->nMoneySupply)));
 
-    UniValue zpivObj(UniValue::VOBJ);
+    UniValue zbczObj(UniValue::VOBJ);
     for (auto denom : libzerocoin::zerocoinDenomList) {
-        zpivObj.push_back(Pair(to_string(denom), ValueFromAmount(blockindex->mapZerocoinSupply.at(denom) * (denom*COIN))));
+        zbczObj.push_back(Pair(to_string(denom), ValueFromAmount(blockindex->mapZerocoinSupply.at(denom) * (denom*COIN))));
     }
-    zpivObj.push_back(Pair("total", ValueFromAmount(blockindex->GetZerocoinSupply())));
-    result.push_back(Pair("zPIVsupply", zpivObj));
+    zbczObj.push_back(Pair("total", ValueFromAmount(blockindex->GetZerocoinSupply())));
+    result.push_back(Pair("zBCZsupply", zbczObj));
 
     return result;
 }
@@ -180,17 +179,17 @@ UniValue getchecksumblock(const UniValue& params, bool fHelp)
             "  \"previousblockhash\" : \"hash\",  (string) The hash of the previous block\n"
             "  \"nextblockhash\" : \"hash\"       (string) The hash of the next block\n"
             "  \"moneysupply\" : \"supply\"       (numeric) The money supply when this block was added to the blockchain\n"
-            "  \"zPIVsupply\" :\n"
+            "  \"zBCZsupply\" :\n"
             "  {\n"
-            "     \"1\" : n,            (numeric) supply of 1 zPIV denomination\n"
-            "     \"5\" : n,            (numeric) supply of 5 zPIV denomination\n"
-            "     \"10\" : n,           (numeric) supply of 10 zPIV denomination\n"
-            "     \"50\" : n,           (numeric) supply of 50 zPIV denomination\n"
-            "     \"100\" : n,          (numeric) supply of 100 zPIV denomination\n"
-            "     \"500\" : n,          (numeric) supply of 500 zPIV denomination\n"
-            "     \"1000\" : n,         (numeric) supply of 1000 zPIV denomination\n"
-            "     \"5000\" : n,         (numeric) supply of 5000 zPIV denomination\n"
-            "     \"total\" : n,        (numeric) The total supply of all zPIV denominations\n"
+            "     \"1\" : n,            (numeric) supply of 1 zBCZ denomination\n"
+            "     \"5\" : n,            (numeric) supply of 5 zBCZ denomination\n"
+            "     \"10\" : n,           (numeric) supply of 10 zBCZ denomination\n"
+            "     \"50\" : n,           (numeric) supply of 50 zBCZ denomination\n"
+            "     \"100\" : n,          (numeric) supply of 100 zBCZ denomination\n"
+            "     \"500\" : n,          (numeric) supply of 500 zBCZ denomination\n"
+            "     \"1000\" : n,         (numeric) supply of 1000 zBCZ denomination\n"
+            "     \"5000\" : n,         (numeric) supply of 5000 zBCZ denomination\n"
+            "     \"total\" : n,        (numeric) The total supply of all zBCZ denominations\n"
             "  }\n"
             "}\n"
 
@@ -231,7 +230,6 @@ UniValue getchecksumblock(const UniValue& params, bool fHelp)
 
     return blockToJSON(block, pblockindex);
 }
-
 
 UniValue getblockcount(const UniValue& params, bool fHelp)
 {
@@ -426,13 +424,12 @@ UniValue getdifficulty(const UniValue& params, bool fHelp)
     return GetDifficulty();
 }
 
-
 UniValue mempoolToJSON(bool fVerbose = false)
 {
     if (fVerbose) {
         LOCK(mempool.cs);
         UniValue o(UniValue::VOBJ);
-        BOOST_FOREACH (const PAIRTYPE(uint256, CTxMemPoolEntry) & entry, mempool.mapTx) {
+        for (const PAIRTYPE(uint256, CTxMemPoolEntry) & entry : mempool.mapTx) {
             const uint256& hash = entry.first;
             const CTxMemPoolEntry& e = entry.second;
             UniValue info(UniValue::VOBJ);
@@ -444,13 +441,13 @@ UniValue mempoolToJSON(bool fVerbose = false)
             info.push_back(Pair("currentpriority", e.GetPriority(chainActive.Height())));
             const CTransaction& tx = e.GetTx();
             set<string> setDepends;
-            BOOST_FOREACH (const CTxIn& txin, tx.vin) {
+            for (const CTxIn& txin : tx.vin) {
                 if (mempool.exists(txin.prevout.hash))
                     setDepends.insert(txin.prevout.hash.ToString());
             }
 
             UniValue depends(UniValue::VARR);
-            BOOST_FOREACH(const string& dep, setDepends) {
+            for (const string& dep : setDepends) {
                 depends.push_back(dep);
             }
 
@@ -463,7 +460,7 @@ UniValue mempoolToJSON(bool fVerbose = false)
         mempool.queryHashes(vtxid);
 
         UniValue a(UniValue::VARR);
-        BOOST_FOREACH (const uint256& hash, vtxid)
+        for (const uint256& hash : vtxid)
             a.push_back(hash.ToString());
 
         return a;
@@ -490,7 +487,7 @@ UniValue getrawmempool(const UniValue& params, bool fHelp)
             "{                           (json object)\n"
             "  \"transactionid\" : {       (json object)\n"
             "    \"size\" : n,             (numeric) transaction size in bytes\n"
-            "    \"fee\" : n,              (numeric) transaction fee in pivx\n"
+            "    \"fee\" : n,              (numeric) transaction fee in bcz\n"
             "    \"time\" : n,             (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT\n"
             "    \"height\" : n,           (numeric) block height when transaction entered pool\n"
             "    \"startingpriority\" : n, (numeric) priority when transaction entered pool\n"
@@ -571,17 +568,17 @@ UniValue getblock(const UniValue& params, bool fHelp)
             "  \"previousblockhash\" : \"hash\",  (string) The hash of the previous block\n"
             "  \"nextblockhash\" : \"hash\"       (string) The hash of the next block\n"
             "  \"moneysupply\" : \"supply\"       (numeric) The money supply when this block was added to the blockchain\n"
-            "  \"zPIVsupply\" :\n"
+            "  \"zBCZsupply\" :\n"
             "  {\n"
-            "     \"1\" : n,            (numeric) supply of 1 zPIV denomination\n"
-            "     \"5\" : n,            (numeric) supply of 5 zPIV denomination\n"
-            "     \"10\" : n,           (numeric) supply of 10 zPIV denomination\n"
-            "     \"50\" : n,           (numeric) supply of 50 zPIV denomination\n"
-            "     \"100\" : n,          (numeric) supply of 100 zPIV denomination\n"
-            "     \"500\" : n,          (numeric) supply of 500 zPIV denomination\n"
-            "     \"1000\" : n,         (numeric) supply of 1000 zPIV denomination\n"
-            "     \"5000\" : n,         (numeric) supply of 5000 zPIV denomination\n"
-            "     \"total\" : n,        (numeric) The total supply of all zPIV denominations\n"
+            "     \"1\" : n,            (numeric) supply of 1 zBCZ denomination\n"
+            "     \"5\" : n,            (numeric) supply of 5 zBCZ denomination\n"
+            "     \"10\" : n,           (numeric) supply of 10 zBCZ denomination\n"
+            "     \"50\" : n,           (numeric) supply of 50 zBCZ denomination\n"
+            "     \"100\" : n,          (numeric) supply of 100 zBCZ denomination\n"
+            "     \"500\" : n,          (numeric) supply of 500 zBCZ denomination\n"
+            "     \"1000\" : n,         (numeric) supply of 1000 zBCZ denomination\n"
+            "     \"5000\" : n,         (numeric) supply of 5000 zBCZ denomination\n"
+            "     \"total\" : n,        (numeric) The total supply of all zBCZ denominations\n"
             "  }\n"
             "}\n"
 
@@ -734,8 +731,8 @@ UniValue gettxout(const UniValue& params, bool fHelp)
             "     \"hex\" : \"hex\",        (string) \n"
             "     \"reqSigs\" : n,          (numeric) Number of required signatures\n"
             "     \"type\" : \"pubkeyhash\", (string) The type, eg pubkeyhash\n"
-            "     \"addresses\" : [          (array of string) array of pivx addresses\n"
-            "     \"pivxaddress\"   	 	(string) pivx address\n"
+            "     \"addresses\" : [          (array of string) array of bcz addresses\n"
+            "     \"bczaddress\"   	 	(string) bcz address\n"
             "        ,...\n"
             "     ]\n"
             "  },\n"
@@ -801,7 +798,7 @@ UniValue verifychain(const UniValue& params, bool fHelp)
             "\nVerifies blockchain database.\n"
 
             "\nArguments:\n"
-            "1. numblocks    (numeric, optional, default=288, 0=all) The number of blocks to check.\n"
+            "1. numblocks    (numeric, optional, default=72, 0=all) The number of blocks to check.\n"
 
             "\nResult:\n"
             "true|false       (boolean) Verified or not\n"
@@ -812,7 +809,7 @@ UniValue verifychain(const UniValue& params, bool fHelp)
     LOCK(cs_main);
 
     int nCheckLevel = 4;
-    int nCheckDepth = GetArg("-checkblocks", 288);
+    int nCheckDepth = GetArg("-checkblocks", Params().MaxCheckblocks());
     if (params.size() > 0)
         nCheckDepth = params[0].get_int();
 
@@ -867,19 +864,6 @@ UniValue getblockchaininfo(const UniValue& params, bool fHelp)
             "  \"difficulty\": xxxxxx,     (numeric) the current difficulty\n"
             "  \"verificationprogress\": xxxx, (numeric) estimate of verification progress [0..1]\n"
             "  \"chainwork\": \"xxxx\"     (string) total amount of work in active chain, in hexadecimal\n"
-            "  \"softforks\": [            (array) status of softforks in progress\n"
-            "     {\n"
-            "        \"id\": \"xxxx\",        (string) name of softfork\n"
-            "        \"version\": xx,         (numeric) block version\n"
-            "        \"enforce\": {           (object) progress toward enforcing the softfork rules for new-version blocks\n"
-            "           \"status\": xx,       (boolean) true if threshold reached\n"
-            "           \"found\": xx,        (numeric) number of blocks with the new version found\n"
-            "           \"required\": xx,     (numeric) number of blocks required to trigger\n"
-            "           \"window\": xx,       (numeric) maximum size of examined window of recent blocks\n"
-            "        },\n"
-            "        \"reject\": { ... }      (object) progress toward rejecting pre-softfork blocks (same fields as \"enforce\")\n"
-            "     }, ...\n"
-            "  ]\n"
             "}\n"
 
             "\nExamples:\n" +
@@ -895,10 +879,6 @@ UniValue getblockchaininfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("difficulty", (double)GetDifficulty()));
     obj.push_back(Pair("verificationprogress", Checkpoints::GuessVerificationProgress(chainActive.Tip())));
     obj.push_back(Pair("chainwork", chainActive.Tip()->nChainWork.GetHex()));
-    CBlockIndex* tip = chainActive.Tip();
-    UniValue softforks(UniValue::VARR);
-    softforks.push_back(SoftForkDesc("bip65", 5, tip));
-    obj.push_back(Pair("softforks",             softforks));
     return obj;
 }
 
@@ -956,9 +936,9 @@ UniValue getchaintips(const UniValue& params, bool fHelp)
        known blocks, and successively remove blocks that appear as pprev
        of another block.  */
     std::set<const CBlockIndex*, CompareBlocksByHeight> setTips;
-    BOOST_FOREACH (const PAIRTYPE(const uint256, CBlockIndex*) & item, mapBlockIndex)
+    for (const PAIRTYPE(const uint256, CBlockIndex*) & item : mapBlockIndex)
         setTips.insert(item.second);
-    BOOST_FOREACH (const PAIRTYPE(const uint256, CBlockIndex*) & item, mapBlockIndex) {
+    for (const PAIRTYPE(const uint256, CBlockIndex*) & item : mapBlockIndex) {
         const CBlockIndex* pprev = item.second->pprev;
         if (pprev)
             setTips.erase(pprev);
@@ -969,7 +949,7 @@ UniValue getchaintips(const UniValue& params, bool fHelp)
 
     /* Construct the output array.  */
     UniValue res(UniValue::VARR);
-    BOOST_FOREACH (const CBlockIndex* block, setTips) {
+    for (const CBlockIndex* block : setTips) {
         UniValue obj(UniValue::VOBJ);
         obj.push_back(Pair("height", block->nHeight));
         obj.push_back(Pair("hash", block->phashBlock->GetHex()));
@@ -1300,9 +1280,8 @@ UniValue getaccumulatorwitness(const UniValue& params, bool fHelp)
     string strFailReason = "";
     int nMintsAdded = 0;
     CZerocoinSpendReceipt receipt;
-
     if (!GenerateAccumulatorWitness(pubCoin, accumulator, witness, nMintsAdded, strFailReason)) {
-        receipt.SetStatus(_(strFailReason.c_str()), ZPIV_FAILED_ACCUMULATOR_INITIALIZATION);
+        receipt.SetStatus(_(strFailReason.c_str()), ZBCZ_FAILED_ACCUMULATOR_INITIALIZATION);
         throw JSONRPCError(RPC_DATABASE_ERROR, receipt.GetStatusMessage());
     }
 
@@ -1341,8 +1320,8 @@ UniValue getmintsinblocks(const UniValue& params, bool fHelp) {
     int nBestHeight = chainActive.Height();
 
     int heightStart = params[0].get_int();
-    if (heightStart < Params().Zerocoin_StartHeight())
-        heightStart = Params().Zerocoin_StartHeight();
+    if (heightStart < zerostart)
+        heightStart = zerostart;
 
     int range = params[1].get_int();
     if (range < 1)
@@ -1376,7 +1355,6 @@ UniValue getmintsinblocks(const UniValue& params, bool fHelp) {
     return obj;
 }
 
-
 UniValue getserials(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
@@ -1397,8 +1375,8 @@ UniValue getserials(const UniValue& params, bool fHelp) {
     int nBestHeight = chainActive.Height();
 
     int heightStart = params[0].get_int();
-    if (heightStart < Params().Zerocoin_StartHeight())
-        heightStart = Params().Zerocoin_StartHeight();
+    if (heightStart < zerostart)
+        heightStart = zerostart;
 
     int range = params[1].get_int();
     if (range < 1)
@@ -1477,5 +1455,3 @@ UniValue getserials(const UniValue& params, bool fHelp) {
     return serialsArr;
 
 }
-
-

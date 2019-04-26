@@ -1,7 +1,7 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -12,13 +12,15 @@
 #include "init.h"
 #include "main.h"
 #include "miner.h"
+#include "staker.h"
 #include "net.h"
 #include "pow.h"
 #include "rpc/server.h"
 #include "util.h"
+#include "spork.h"
 #ifdef ENABLE_WALLET
-#include "wallet/db.h"
-#include "wallet/wallet.h"
+#include "db.h"
+#include "wallet.h"
 #endif
 
 #include <stdint.h>
@@ -46,7 +48,7 @@ UniValue GetNetworkHashPS(int lookup, int height)
 
     // If lookup is -1, then use blocks since last difficulty change.
     if (lookup <= 0)
-        lookup = pb->nHeight % 2016 + 1;
+        lookup = pb->nHeight % 1 + 1;
 
     // If lookup is larger than chain, then set it to chain length.
     if (lookup > pb->nHeight)
@@ -101,7 +103,7 @@ UniValue getgenerate(const UniValue& params, bool fHelp)
         throw runtime_error(
             "getgenerate\n"
             "\nReturn if the server is set to generate coins or not. The default is false.\n"
-            "It is set with the command line argument -gen (or pivx.conf setting gen)\n"
+            "It is set with the command line argument -gen (or bcz.conf setting gen)\n"
             "It can also be set with the setgenerate call.\n"
 
             "\nResult\n"
@@ -133,8 +135,7 @@ UniValue generate(const UniValue& params, bool fHelp)
             + HelpExampleCli("generate", "11")
         );
 
-    if (!Params().MineBlocksOnDemand())
-        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "This method can only be used on regtest");
+
 
     int nHeightStart = 0;
     int nHeightEnd = 0;
@@ -150,16 +151,16 @@ UniValue generate(const UniValue& params, bool fHelp)
     }
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
-    bool fPoS = nHeight >= Params().LAST_POW_BLOCK();
+
     while (nHeight < nHeightEnd)
     {
 
-        unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey, pwalletMain, fPoS));
+        unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey, pwalletMain));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
 
-        if(!fPoS){
+        if(!true){
             {
                 LOCK(cs_main);
                 IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
@@ -174,7 +175,6 @@ UniValue generate(const UniValue& params, bool fHelp)
         if (!ProcessNewBlock(state, NULL, pblock))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
         ++nHeight;
-        fPoS = nHeight >= Params().LAST_POW_BLOCK();
         blockHashes.push_back(pblock->GetHash().GetHex());
     }
     return blockHashes;
@@ -192,6 +192,10 @@ UniValue setgenerate(const UniValue& params, bool fHelp)
             "\nArguments:\n"
             "1. generate         (boolean, required) Set to true to turn on generation, false to turn off.\n"
             "2. genproclimit     (numeric, optional) Set the processor limit for when generation is on. Can be -1 for unlimited.\n"
+            "                    Note: in -regtest mode, genproclimit controls how many blocks are generated immediately.\n"
+
+            "\nResult\n"
+            "[ blockhashes ]     (array, -regtest only) hashes of blocks generated\n"
 
             "\nExamples:\n"
             "\nSet the generation on with a limit of one processor\n" +
@@ -203,23 +207,19 @@ UniValue setgenerate(const UniValue& params, bool fHelp)
     if (pwalletMain == NULL)
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
 
-    if (Params().MineBlocksOnDemand())
-        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Use the generate method instead of setgenerate on this network");
-
-    bool fGenerate = true;
     if (params.size() > 0)
-        fGenerate = params[0].get_bool();
+        fGenerate_BCZ = params[0].get_bool();
 
     int nGenProcLimit = -1;
     if (params.size() > 1) {
         nGenProcLimit = params[1].get_int();
         if (nGenProcLimit == 0)
-            fGenerate = false;
+            fGenerate_BCZ = false;
     }
 
-    mapArgs["-gen"] = (fGenerate ? "1" : "0");
-    mapArgs["-genproclimit"] = itostr(nGenProcLimit);
-    GenerateBitcoins(fGenerate, pwalletMain, nGenProcLimit);
+        mapArgs["-gen"] = (fGenerate_BCZ ? "1" : "0");
+        mapArgs["-genproclimit"] = itostr(nGenProcLimit);
+        GenerateBCZ(fGenerate_BCZ, pwalletMain, nGenProcLimit);
 
     return NullUniValue;
 }
@@ -242,8 +242,231 @@ UniValue gethashespersec(const UniValue& params, bool fHelp)
         return (int64_t)0;
     return (int64_t)dHashesPerSec;
 }
-#endif
 
+UniValue getstake(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getstake\n"
+            "\nReturn if the server is set to stake coins or not. The default is false.\n"
+            "It is set with the command line argument -stake (or bcz.conf setting stake)\n"
+            "It can also be set with the setstake call.\n"
+
+            "\nResult\n"
+            "true|false      (boolean) If the server is set to stake coins or not\n"
+
+            "\nExamples:\n" +
+            HelpExampleCli("getstake", "") + HelpExampleRpc("getstake", ""));
+
+    LOCK(cs_main);
+    return GetBoolArg("-stake", false);
+}
+
+UniValue setstake(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "setstake stake ( genproclimit )\n"
+            "\nSet 'stake' true or false to turn staking on or off.\n"
+            "Staking is limited to 'genproclimit' processors, -1 is unlimited.\n"
+            "See the getstake call for the current setting.\n"
+
+            "\nArguments:\n"
+            "1. stake         (boolean, required) Set to true to turn on staking, false to turn off.\n"
+            "2. genproclimit     (numeric, optional) Set the processor limit for when staking is on. Can be -1 for unlimited.\n"
+            "                    Note: in -regtest mode, genproclimit controls how many blocks are staked immediately.\n"
+
+            "\nExamples:\n"
+            "\nSet the staking on with a limit of one processor\n" +
+            HelpExampleCli("setstake", "true 1") +
+            "\nCheck the setting\n" + HelpExampleCli("getstake", "") +
+            "\nTurn off generation\n" + HelpExampleCli("setstake", "false") +
+            "\nUsing json rpc\n" + HelpExampleRpc("setstake", "true, 1"));
+
+    if (pwalletMain == NULL)
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
+
+    if (params.size() > 0)
+        fStake_BCZ = params[0].get_bool();
+
+    int nGenProcLimit = -1;
+    if (params.size() > 1) {
+        nGenProcLimit = params[1].get_int();
+        if (nGenProcLimit == 0)
+            fStake_BCZ = false;
+    }
+
+        mapArgs["-stake"] = (fStake_BCZ ? "1" : "0");
+        mapArgs["-genproclimit"] = itostr(nGenProcLimit);
+        StakeBCZ(fStake_BCZ, pwalletMain, nGenProcLimit);
+
+    return NullUniValue;
+}
+
+UniValue setzeromint(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "setzeromint mint\n"
+            "\nSet 'mint' true or false to turn minting on or off.\n"
+            "See the getzeromint call for the current setting.\n"
+
+            "\nArguments:\n"
+            "1. mint         (boolean, required) Set to true to turn on generation, false to turn off.\n"
+
+            "\nExamples:\n"
+            "\nSet the minting on\n" +
+            HelpExampleCli("setzeromint", "true") +
+            "\nCheck the setting\n" + HelpExampleCli("getzeromint", "") +
+            "\nTurn off minting\n" + HelpExampleCli("setzeromint", "false") +
+            "\nUsing json rpc\n" + HelpExampleRpc("setzeromint", "true"));
+
+    if (pwalletMain == NULL)
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
+
+    if (params.size() > 0)
+        fEnableZeromint = params[0].get_bool();
+
+        mapArgs["-zeromint"] = (fEnableZeromint ? "1" : "0");
+
+    return NullUniValue;
+}
+
+UniValue getzeromint(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getzeromint\n"
+            "\nReturn if the server is set to mint zerocoins or not. The default is false.\n"
+            "It is set with the command line argument -zeromint (or bcz.conf setting zeromint)\n"
+            "It can also be set with the setgenerate call.\n"
+
+            "\nResult\n"
+            "true|false      (boolean) If the server is set to mint zerocoins or not\n"
+
+            "\nExamples:\n" +
+            HelpExampleCli("getzeromint", "") + HelpExampleRpc("getzeromint", ""));
+
+    LOCK(cs_main);
+    return GetBoolArg("-zeromint", false);
+}
+
+UniValue getzstake(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getzstake\n"
+            "\nReturn if the server is set to stake zerocoins or not. The default is false.\n"
+            "It is set with the command line argument -zerostake (or bcz.conf setting zbczstake)\n"
+            "It can also be set with the setzstake call.\n"
+
+            "\nResult\n"
+            "true|false      (boolean) If the server is set to stake coins or not\n"
+
+            "\nExamples:\n" +
+            HelpExampleCli("getstake", "") + HelpExampleRpc("getzstake", ""));
+
+    LOCK(cs_main);
+    return GetBoolArg("-zerostake", false);
+}
+
+UniValue setzstake(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "setzstake mint\n"
+            "\nSet 'mint' true or false to turn staking on or off.\n"
+            "See the getzstake call for the current setting.\n"
+
+            "\nArguments:\n"
+            "1. mint         (boolean, required) Set to true to turn on staking, false to turn off.\n"
+
+            "\nExamples:\n"
+            "\nSet the zerostaking on\n" +
+            HelpExampleCli("setzstake", "true") +
+            "\nCheck the setting\n" + HelpExampleCli("getzstake", "") +
+            "\nTurn off minting\n" + HelpExampleCli("setzstake", "false") +
+            "\nUsing json rpc\n" + HelpExampleRpc("setzstake", "true"));
+
+    if (pwalletMain == NULL)
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
+
+    if (params.size() > 0)
+        fZStake_BCZ = params[0].get_bool();
+
+        mapArgs["-zerostake"] = (fZStake_BCZ ? "1" : "0");
+
+    return NullUniValue;
+}
+
+UniValue setautoconvert(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "setautoconvert enable\n"
+            "\nSet 'enable' true or false to turn autoconvert on or off.\n"
+            "See the getautoconvert call for the current setting.\n"
+
+            "\nArguments:\n"
+            "1. mint         (boolean, required) Set to true to turn on autoconvert, false to turn off.\n"
+
+            "\nExamples:\n"
+            "\nSet the minting on\n" +
+            HelpExampleCli("setautoconvert", "true") +
+            "\nCheck the setting\n" + HelpExampleCli("getautoconvert", "") +
+            "\nTurn off minting\n" + HelpExampleCli("setautoconvert", "false") +
+            "\nUsing json rpc\n" + HelpExampleRpc("setautoconvert", "true"));
+
+    if (pwalletMain == NULL)
+        throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
+
+    if (params.size() > 0)
+        fEnableAutoConvert = params[0].get_bool();
+
+        mapArgs["-autoconvert"] = (fEnableAutoConvert ? "1" : "0");
+
+    return NullUniValue;
+}
+
+UniValue getautoconvert(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getautoconvert\n"
+            "\nReturn if the server is set to autoconvert BCZ into zerocoins or not. The default is false.\n"
+            "It is set with the command line argument -autoconvert (or bcz.conf setting autoconvert)\n"
+            "It can also be set with the setautoconvert call.\n"
+
+            "\nResult\n"
+            "true|false      (boolean) If the server is set to mint zerocoins or not\n"
+
+            "\nExamples:\n" +
+            HelpExampleCli("getautoconvert", "") + HelpExampleRpc("getautoconvert", ""));
+
+    LOCK(cs_main);
+    return GetBoolArg("-autoconvert", false);
+}
+
+UniValue createautomintaddress(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw std::runtime_error(
+                "createautomintaddress\n"
+                "\nGenerates new auto mint address\n" +
+                HelpRequiringPassphrase() + "\n"
+
+                "\nResult\n"
+                "\"address\"     (string) BCZ address for autoconverting BCZ into zBCZ from chosen address\n" +
+                HelpExampleCli("createautomintaddress", "") +
+                HelpExampleRpc("createautomintaddress", ""));
+
+    EnsureWalletIsUnlocked();
+    LOCK(pwalletMain->cs_wallet);
+    CBitcoinAddress address = pwalletMain->GenerateNewAutoMintKey();
+    return address.ToString();
+}
+
+#endif
 
 UniValue getmininginfo(const UniValue& params, bool fHelp)
 {
@@ -303,8 +526,8 @@ UniValue prioritisetransaction(const UniValue& params, bool fHelp)
             "1. \"txid\"       (string, required) The transaction id.\n"
             "2. priority delta (numeric, required) The priority to add or subtract.\n"
             "                  The transaction selection algorithm considers the tx as it would have a higher priority.\n"
-            "                  (priority of a transaction is calculated: coinage * value_in_upiv / txsize) \n"
-            "3. fee delta      (numeric, required) The fee value (in upiv) to add (or subtract, if negative).\n"
+            "                  (priority of a transaction is calculated: coinage * value_in_ubcz / txsize) \n"
+            "3. fee delta      (numeric, required) The fee value (in ubcz) to add (or subtract, if negative).\n"
             "                  The fee is not actually paid, only the algorithm for selecting transactions into a block\n"
             "                  considers the transaction as it would have paid a higher (or lower) fee.\n"
 
@@ -374,7 +597,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             "             n                        (numeric) transactions before this one (by 1-based index in 'transactions' list) that must be present in the final block if this one is\n"
             "             ,...\n"
             "         ],\n"
-            "         \"fee\": n,                   (numeric) difference in value between transaction inputs and outputs (in upiv); for coinbase transactions, this is a negative Number of the total collected block fees (ie, not including the block subsidy); if key is not present, fee is unknown and clients MUST NOT assume there isn't one\n"
+            "         \"fee\": n,                   (numeric) difference in value between transaction inputs and outputs (in ubcz); for coinbase transactions, this is a negative Number of the total collected block fees (ie, not including the block subsidy); if key is not present, fee is unknown and clients MUST NOT assume there isn't one\n"
             "         \"sigops\" : n,               (numeric) total number of SigOps, as counted for purposes of block limits; if key is not present, sigop count is unknown and clients MUST NOT assume there aren't any\n"
             "         \"required\" : true|false     (boolean) if provided and true, this transaction must be in the final block\n"
             "      }\n"
@@ -383,7 +606,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             "  \"coinbaseaux\" : {                  (json object) data that should be included in the coinbase's scriptSig content\n"
             "      \"flags\" : \"flags\"            (string) \n"
             "  },\n"
-            "  \"coinbasevalue\" : n,               (numeric) maximum allowable input to coinbase transaction, including the generation award and transaction fees (in upiv)\n"
+            "  \"coinbasevalue\" : n,               (numeric) maximum allowable input to coinbase transaction, including the generation award and transaction fees (in ubcz)\n"
             "  \"coinbasetxn\" : { ... },           (json object) information for coinbase transaction\n"
             "  \"target\" : \"xxxx\",               (string) The hash target\n"
             "  \"mintime\" : xxx,                   (numeric) The minimum timestamp appropriate for next block time in seconds since epoch (Jan 1 1970 GMT)\n"
@@ -446,7 +669,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             }
 
             CBlockIndex* const pindexPrev = chainActive.Tip();
-            // TestBlockValidity only supports blocks built on the current Tip
+             //TestBlockValidity only supports blocks built on the current Tip
             if (block.hashPrevBlock != pindexPrev->GetBlockHash())
                 return "inconclusive-not-best-prevblk";
             CValidationState state;
@@ -459,10 +682,10 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid mode");
 
     if (vNodes.empty())
-        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "PIVX is not connected!");
+        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "BCZ is not connected!");
 
     if (IsInitialBlockDownload())
-        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "PIVX is downloading blocks...");
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "BCZ is downloading blocks...");
 
     static unsigned int nTransactionsUpdatedLast;
 
@@ -527,7 +750,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             pblocktemplate = NULL;
         }
         CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = CreateNewBlock(scriptDummy, pwalletMain, false);
+        pblocktemplate = CreateNewBlock(scriptDummy, pwalletMain);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -538,6 +761,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 
     // Update nTime
     UpdateTime(pblock, pindexPrev);
+    UpdateDiff(pblock, pindexPrev);
     pblock->nNonce = 0;
 
     UniValue aCaps(UniValue::VARR); aCaps.push_back("proposal");
@@ -545,7 +769,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     UniValue transactions(UniValue::VARR);
     map<uint256, int64_t> setTxIndex;
     int i = 0;
-    BOOST_FOREACH (CTransaction& tx, pblock->vtx) {
+    for (CTransaction& tx : pblock->vtx) {
         uint256 txHash = tx.GetHash();
         setTxIndex[txHash] = i++;
 
@@ -559,7 +783,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         entry.push_back(Pair("hash", txHash.GetHex()));
 
         UniValue deps(UniValue::VARR);
-        BOOST_FOREACH (const CTxIn& in, tx.vin) {
+        for (const CTxIn& in : tx.vin) {
             if (setTxIndex.count(in.prevout.hash))
                 deps.push_back(setTxIndex[in.prevout.hash]);
         }
@@ -598,8 +822,6 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     result.push_back(Pair("mintime", (int64_t)pindexPrev->GetMedianTimePast() + 1));
     result.push_back(Pair("mutable", aMutable));
     result.push_back(Pair("noncerange", "00000000ffffffff"));
-//    result.push_back(Pair("sigoplimit", (int64_t)MAX_BLOCK_SIGOPS));
-//    result.push_back(Pair("sizelimit", (int64_t)MAX_BLOCK_SIZE));
     result.push_back(Pair("curtime", pblock->GetBlockTime()));
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight + 1)));
@@ -617,8 +839,8 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         result.push_back(Pair("payee_amount", ""));
     }
 
-    result.push_back(Pair("masternode_payments", pblock->nTime > Params().StartMasternodePayments()));
-    result.push_back(Pair("enforce_masternode_payments", true));
+    result.push_back(Pair("masternode_payments", pblock->nTime > GetSporkValue(SPORK_13_MN_F_PAYMENTS)));
+    result.push_back(Pair("enforce_masternode_payments", IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
 
     return result;
 }
@@ -666,10 +888,6 @@ UniValue submitblock(const UniValue& params, bool fHelp)
     CBlock block;
     if (!DecodeHexBlk(block, params[0].get_str()))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block decode failed");
-
-    if (block.vtx.empty() || !block.vtx[0].IsCoinBase()) {
-        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Block does not start with a coinbase");
-    }
 
     uint256 hash = block.GetHash();
     bool fBlockPresent = false;

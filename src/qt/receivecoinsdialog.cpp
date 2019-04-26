@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2017 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -91,8 +91,6 @@ void ReceiveCoinsDialog::setModel(WalletModel* model)
         address = settings.value("current_receive_address").toString();
         if (address.isEmpty())
             address = getAddress();
-        ui->reqAddress->setText(address);
-
         connect(model, SIGNAL(notifyReceiveAddressChanged()), this, SLOT(receiveAddressUsed()));
     }
 }
@@ -107,9 +105,7 @@ ReceiveCoinsDialog::~ReceiveCoinsDialog()
 void ReceiveCoinsDialog::clear()
 {
     ui->reqAmount->clear();
-    ui->reqAddress->setText(address);
     ui->reqLabel->setText("");
-    ui->reqMessage->setText("");
     ui->reuseAddress->setChecked(false);
     updateDisplayUnit();
 }

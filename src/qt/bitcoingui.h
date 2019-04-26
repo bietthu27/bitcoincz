@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2017-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -7,7 +7,7 @@
 #define BITCOIN_QT_BITCOINGUI_H
 
 #if defined(HAVE_CONFIG_H)
-#include "config/pivx-config.h"
+#include "config/bcz-config.h"
 #endif
 
 #include "amount.h"
@@ -83,8 +83,11 @@ private:
     WalletFrame* walletFrame;
 
     UnitDisplayStatusBarControl* unitDisplayControl;
-    QLabel* labelStakingIcon;
+    QPushButton* labelPOWIcon;
+    QPushButton* labelStakingIcon;
+    QPushButton* labelZStakingIcon;
     QPushButton* labelAutoMintIcon;
+    QPushButton* labelAutoConvertIcon;
     QPushButton* labelEncryptionIcon;
     QLabel* labelTorIcon;
     QPushButton* labelConnectionsIcon;
@@ -109,7 +112,6 @@ private:
     QAction* multisigSignAction;
     QAction* aboutAction;
     QAction* receiveCoinsAction;
-    QAction* governanceAction;
     QAction* privacyAction;
     QAction* optionsAction;
     QAction* toggleHideAction;
@@ -185,8 +187,11 @@ public slots:
     void message(const QString& title, const QString& message, unsigned int style, bool* ret = NULL);
 
 #ifdef ENABLE_WALLET
+    void setPOWStatus();
     void setStakingStatus();
+    void setZStakingStatus();
     void setAutoMintStatus();
+    void setAutoConvertStatus();
 
     /** Set the encryption status as shown in the UI.
        @param[in] status            current encryption status
@@ -210,8 +215,6 @@ private slots:
     void gotoOverviewPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
-    /** Switch to Governance Page */
-    void gotoGovernancePage();
     /** Switch to Explorer Page */
     void gotoBlockExplorerPage();
     /** Switch to masternode page */

@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -30,8 +30,6 @@ class CMasternodePing;
 extern map<int64_t, uint256> mapCacheBlockHashes;
 
 bool GetBlockHash(uint256& hash, int nBlockHeight);
-
-
 //
 // The Masternode Ping Class : Contains a different serialize method for sending pings from masternodes throughout the network
 //
@@ -101,7 +99,7 @@ public:
 };
 
 //
-// The Masternode Class. For managing the Obfuscation process. It contains the input of the 10000 PIV, signature to prove
+// The Masternode Class. For managing the Obfuscation process. It contains the input of the BCZ, signature to prove
 // it's the one who own that ip address and code for calculating the payment election.
 //
 class CMasternode
@@ -131,11 +129,9 @@ public:
     CPubKey pubKeyCollateralAddress1;
     CPubKey pubKeyMasternode1;
     std::vector<unsigned char> sig;
-    int activeState;
     int64_t sigTime; //mnb message time
     int cacheInputAge;
     int cacheInputAgeBlock;
-    bool unitTest;
     bool allowFreeTx;
     int protocolVersion;
     int nActiveState;
@@ -164,12 +160,11 @@ public:
         swap(first.pubKeyCollateralAddress, second.pubKeyCollateralAddress);
         swap(first.pubKeyMasternode, second.pubKeyMasternode);
         swap(first.sig, second.sig);
-        swap(first.activeState, second.activeState);
+        swap(first.nActiveState, second.nActiveState);
         swap(first.sigTime, second.sigTime);
         swap(first.lastPing, second.lastPing);
         swap(first.cacheInputAge, second.cacheInputAge);
         swap(first.cacheInputAgeBlock, second.cacheInputAgeBlock);
-        swap(first.unitTest, second.unitTest);
         swap(first.allowFreeTx, second.allowFreeTx);
         swap(first.protocolVersion, second.protocolVersion);
         swap(first.nLastDsq, second.nLastDsq);
@@ -207,11 +202,10 @@ public:
         READWRITE(sig);
         READWRITE(sigTime);
         READWRITE(protocolVersion);
-        READWRITE(activeState);
+        READWRITE(nActiveState);
         READWRITE(lastPing);
         READWRITE(cacheInputAge);
         READWRITE(cacheInputAgeBlock);
-        READWRITE(unitTest);
         READWRITE(allowFreeTx);
         READWRITE(nLastDsq);
         READWRITE(nScanningErrorCount);
@@ -251,7 +245,7 @@ public:
 
     bool IsEnabled()
     {
-        return activeState == MASTERNODE_ENABLED;
+        return nActiveState == MASTERNODE_ENABLED;
     }
 
     int GetMasternodeInputAge()
@@ -267,19 +261,6 @@ public:
     }
 
     std::string GetStatus();
-
-    std::string Status()
-    {
-        std::string strStatus = "ACTIVE";
-
-        if (activeState == CMasternode::MASTERNODE_ENABLED) strStatus = "ENABLED";
-        if (activeState == CMasternode::MASTERNODE_EXPIRED) strStatus = "EXPIRED";
-        if (activeState == CMasternode::MASTERNODE_VIN_SPENT) strStatus = "VIN_SPENT";
-        if (activeState == CMasternode::MASTERNODE_REMOVE) strStatus = "REMOVE";
-        if (activeState == CMasternode::MASTERNODE_POS_ERROR) strStatus = "POS_ERROR";
-
-        return strStatus;
-    }
 
     int64_t GetLastPaid();
     bool IsValidNetAddr();
@@ -302,7 +283,6 @@ public:
     bool Sign(CKey& keyCollateralAddress);
     bool VerifySignature();
     void Relay();
-    std::string GetOldStrMessage();
     std::string GetNewStrMessage();
 
     ADD_SERIALIZE_METHODS;

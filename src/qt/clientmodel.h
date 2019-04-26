@@ -1,6 +1,6 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2018 The PIVX developers
+// Copyright (c) 2019 The BCZ Core Developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -37,7 +37,7 @@ enum NumConnections {
     CONNECTIONS_ALL = (CONNECTIONS_IN | CONNECTIONS_OUT),
 };
 
-/** Model for PIVX network client. */
+/** Model for BCZ network client. */
 class ClientModel : public QObject
 {
     Q_OBJECT
@@ -55,6 +55,11 @@ public:
     QString getMasternodeCountString() const;
     int getNumBlocks() const;
     int getNumBlocksAtStartup();
+
+    //! Return number of transactions in the mempool
+    long getMempoolSize() const;
+    //! Return the dynamic memory usage of the mempool
+    size_t getMempoolDynamicUsage() const;
 
     quint64 getTotalBytesRecv() const;
     quint64 getTotalBytesSent() const;
@@ -101,6 +106,7 @@ signals:
     void strMasternodesChanged(const QString& strMasternodes);
     void alertsChanged(const QString& warnings);
     void bytesChanged(quint64 totalBytesIn, quint64 totalBytesOut);
+    void mempoolSizeChanged(long count, size_t mempoolSizeInBytes);
 
     //! Fired when a message should be reported to the user
     void message(const QString& title, const QString& message, unsigned int style);
