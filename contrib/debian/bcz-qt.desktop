@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=BCZ
+Comment=BCZ P2P Cryptocurrency
+Comment[fr]=BCZ, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=BCZ, eşten eşe kriptografik sanal para birimi
+Exec=bcz-qt %u
+Terminal=false
+Type=Application
+Icon=bcz128
+MimeType=x-scheme-handler/bcz;
+Categories=Office;Finance;
