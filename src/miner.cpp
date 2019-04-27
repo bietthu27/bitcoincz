@@ -398,8 +398,12 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, CWallet* pwallet)
         // Compute final coinbase transaction.
         if (nHeight < (forkend + 1)){
             txNew.vout[0].nValue = 0;}
+        else if (IsSporkActive(SPORK_13_MN_F_PAYMENTS)) {
+        txNew.vout[0].nValue = GetBlockValue(pindexPrev->nHeight) + nFees - GetMasternodePayment(false) - 1 * COIN;
+        }
         else {
-        txNew.vout[0].nValue = GetBlockValue(pindexPrev->nHeight) + nFees - GetMasternodePayment(false) - 1 * COIN;}
+        txNew.vout[0].nValue = GetBlockValue(pindexPrev->nHeight) + nFees - 1 * COIN;
+        }
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
         pblock->vtx[0] = txNew;
         pblocktemplate->vTxFees[0] = -nFees;
@@ -530,7 +534,8 @@ void POWMiner(CWallet* pwallet)
 
     while (true){
 
-        while (IsInitialBlockDownload()) {
+        while (!masternodeSync.IsBlockchainSynced()) {
+            LogPrintf("POWMiner sleeping\n");
             MilliSleep(60000); }
 
         //

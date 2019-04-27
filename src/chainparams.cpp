@@ -88,7 +88,7 @@ public:
         pchMessageStart[3] = { '0' };
         vAlertPubKey = ParseHex("048378e08a534895875d23874348f0e126f55911837bc920c559fd2f835ec4dd209b95582039de00b322347f5b38b11d2fe078349d0347884f420d4e11bf3a4c4c");
         nMaxCheckblocks = 576;
-        nMaxClockdrift = 3 * 60 * 60;
+        nMaxClockdrift = 6 * 60 * 60;
         nStakeMinAge = 60 * 60;
         nStakeTargetSpacing = 150;
         nEnforceBlockUpgradeMajority = 8100; // 75%
