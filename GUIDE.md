@@ -64,7 +64,7 @@ To export/dump the file :
 
 The file will be saved in the data application folder. For Mac users in the rootfolder.
 
-To import your walletaddress private keys (GXX, BZX) at once in the your GXX, BZX desktop wallet:
+To import your walletaddress private keys (GXX, BZX) at once in the your BCZ desktop wallet:
 
 Go to **_Tools -> Debug Console_**.
 
