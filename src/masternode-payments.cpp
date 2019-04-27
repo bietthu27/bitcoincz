@@ -356,7 +356,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int64_t nFe
               txNew.vout[2].scriptPubKey = GetScriptForDestination(CBitcoinAddress("BLNgVdnK2J4TypcK1QGb8KXBXGPyqgSY7g").Get());
               txNew.vout[2].nValue = 0.1 * COIN;
               txNew.vout[1].scriptPubKey = payee;
-              txNew.vout[1].nValue = 0;
+              txNew.vout[1].nValue = masternodePayment;
 
           }
         }
