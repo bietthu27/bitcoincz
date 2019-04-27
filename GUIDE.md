@@ -40,8 +40,8 @@ Stop/quit the BCZ desktop wallet.
 
 Copy paste the GXX or BZX wallet.dat file in your data application folder.
 
-    -   Windows: C:\Users\Username\AppData\Roaming\bcz
-    -   Mac: ~/Users/Username/Library/Application Support/bcz
+    -   Windows: C:\Users\Username\AppData\Roaming\BCZ
+    -   Mac: ~/Users/Username/Library/Application Support/BCZ
     -   Unix: ~/.bcz
 
 Restart the BCZ desktop wallet.
