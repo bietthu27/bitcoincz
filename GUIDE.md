@@ -28,7 +28,7 @@ if your wallet is encrypted (locked) then you need to decrypt it first:
 
     walletpassphrase “YOUR_PASSPHRASE/PASSWORD” 240
 
-To reveal your walletaddress private key type:
+To import your walletaddress private key type:
 
     importprivkey “YOUR_WALLETADDRESS_PRIVKEY”
 
