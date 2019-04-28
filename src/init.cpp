@@ -877,7 +877,9 @@ bool AppInit2()
 
     forkend = 633; // normal block
     zerostart = GetSporkValue(SPORK_20_ZEROCOIN_START);
-    LogPrintf("Zerocoin activation at block =%s n", zerostart);
+    LogPrintf("Zerocoin activation at block %s \n", zerostart);
+    algostart = GetSporkValue(SPORK_19_LYRA_ALGO);
+    LogPrintf("nVersion 4 activation at block %s \n", algostart);
 
     // ********************************************************* Step 3: parameter-to-internal-flags
 

@@ -26,7 +26,9 @@ uint256 CBlockHeader::GetHash() const
 
     else if (nVersion == 4)
     {
-        return Hash(BEGIN(nVersion), END(nAccumulatorCheckpoint));
+        uint256 powHash;
+        lyra2z_hash(BEGIN(nVersion), BEGIN(nAccumulatorCheckpoint));
+        return powHash;
     }
 
     else

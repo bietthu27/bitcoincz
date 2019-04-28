@@ -99,7 +99,7 @@ CBlockTemplate* CreateNewPOSBlock(const CScript& scriptPubKeyIn, CWallet* pwalle
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
     pblock->nVersion = 3;
-    if (nHeight > zerostart) {
+    if (nHeight > algostart) {
                pblock->nVersion = 4;}
 
     // Create coinbase tx

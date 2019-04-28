@@ -55,6 +55,7 @@ using namespace libzerocoin;
 #error "BCZ cannot be compiled without assertions."
 #endif
 
+int64_t algostart;
 int64_t zerostart;
 int64_t forkend;
 
@@ -3812,7 +3813,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& sta
                              REJECT_OBSOLETE, "bad-version"); }
 
 
-    if (block.nVersion < 4 && nHeight > zerostart) {
+    if (block.nVersion < 4 && nHeight > algostart) {
     return state.Invalid(error("%s : rejected old 3 nVersion block", __func__),
                          REJECT_OBSOLETE, "bad-version"); }
 

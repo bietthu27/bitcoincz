@@ -637,6 +637,7 @@ struct CBlockTemplate {
     std::vector<int64_t> vTxSigOps;
 };
 
+extern int64_t algostart;
 extern int64_t zerostart;
 extern int64_t forkend;
 
